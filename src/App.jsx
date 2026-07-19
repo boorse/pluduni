@@ -3,7 +3,9 @@ import { SPECIES, CATS, PLAYERS, RARITY, METHODS, SIZE_MULT, ACHIEVEMENTS, calcP
 import MindMap from './mindmap.jsx'
 import { gradientFor, gradientForCat } from './gradients.js'
 import { UI, nameOf, catNameOf } from './i18n.js'
-import { Calendar, Territory, Gallery } from './screens.jsx'
+import { Calendar, Territory, Gallery, ByPerson } from './screens.jsx'
+import { PhotoManager, PhotoBg, PhotoButton, usePhotos } from './photoui.jsx'
+import { LUT } from './photos.js'
 
 const T = {
   bg:'#EDE7D8', surface:'#E3DAC5', card:'#E6DDC8',
@@ -114,7 +116,7 @@ function Landing({ lang, setLang, go, onQuiz }) {
 // ══════════════════ APP ══════════════════
 export default function App() {
   const wide = useWide()
-  const [screen, setScreen] = useState('lang')
+  const [screen, setScreen] = useState('landing')
   const [lang, setLang] = useState('fr')
   const [nav, setNav] = useState('explore')
   const [curCat, setCurCat] = useState(null)
@@ -130,13 +132,14 @@ export default function App() {
   const [focus, setFocus] = useState(null)        // 'map' | 'matrix' | null
   const [curInd, setCurInd] = useState(null)      // individu ouvert
   const [curPlayer, setCurPlayer] = useState(null) // detail score
+  const [photoTarget, setPhotoTarget] = useState(null) // {target,label}
 
   const sp = SPECIES.find(s => s.id === curSp)
   const catObj = CATS.find(c => c.id === curCat)
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(null), 3200) }
   const selSpFull = (id) => { const s = SPECIES.find(x=>x.id===id); setCurCat(s?.cat); setCurSp(id); setDetTab('obs') }
-  const submitPw = () => { if (pw==='pluduni'){ setEdit(true); setPwOpen(false); setPw('') } else setPw('') }
+  const submitPw = () => { if (pw==='arbalete'){ setEdit(true); setPwOpen(false); setPw('') } else setPw('') }
 
   const t = UI[lang]
 
@@ -151,13 +154,119 @@ export default function App() {
   if (screen === 'territory') return <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}><Territory wide={wide} lang={lang} onBack={()=>setScreen('landing')} /></Shell>
   if (screen === 'gallery')   return (
     <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}>
-      <Gallery wide={wide} lang={lang} onBack={()=>setScreen('landing')} onSelectSpecies={(id)=>{ setScreen('app'); selSpFull(id) }} />
+      <Gallery wide={wide} lang={lang} onBack={()=>setScreen('landing')} />
     </Shell>
   )
 
   // ═════ MATRIX PANE ═════
-  const MatrixPane = ({ compact }) => (
-    <div style={{ padding: compact?'12px 14px':'14px 18px' }}>
+  const MatrixPane = ({ compact }) => {
+    const [focusPerson, setFocusPerson] = useState(null)
+    if (!compact) return <MatrixWide focusPerson={focusPerson} setFocusPerson={setFocusPerson} />
+    return <MatrixCompact />
+  }
+
+  // vue large : une colonne complète par personne
+  const MatrixWide = ({ focusPerson, setFocusPerson }) => {
+    const cols = focusPerson ? PLAYERS.filter(p=>p.name===focusPerson) : PLAYERS
+    return (
+      <div style={{ padding:'14px 18px' }}>
+        <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:14, alignItems:'center' }}>
+          <span style={{ fontSize:11, color:T.mute }}>{lang==='ru'?'Показать:':'Afficher :'}</span>
+          <button onClick={()=>setFocusPerson(null)} style={{ fontSize:11.5, padding:'5px 11px', borderRadius:14,
+            border:`1px solid ${!focusPerson?T.clay:T.line}`, background:!focusPerson?T.clay:'transparent',
+            color:!focusPerson?'#fff':T.soft, fontWeight:!focusPerson?600:400 }}>{t.all}</button>
+          {PLAYERS.map(p=>{
+            const on = focusPerson===p.name
+            return <button key={p.id} onClick={()=>setFocusPerson(on?null:p.name)} style={{ fontSize:11.5, padding:'5px 11px',
+              borderRadius:14, border:`1px solid ${on?T.clay:T.line}`, background:on?T.clay:'transparent',
+              color:on?'#fff':T.soft, fontWeight:on?600:400 }}>{p.name}</button>
+          })}
+        </div>
+        {CATS.filter(c=>SPECIES.some(s=>s.cat===c.id)).map(cat=>{
+          const list = SPECIES.filter(s=>s.cat===cat.id)
+          const cn = catNameOf(cat, lang)
+          return (
+            <div key={cat.id} style={{ marginBottom:20 }}>
+              <div className="serif" style={{ fontSize:15, fontWeight:700, color:T.ink, marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+                <span>{cat.e}</span>{cn.main}
+                <span style={{ fontSize:11, color:T.mute, fontWeight:400 }}>· {list.filter(isObserved).length}/{list.length}</span>
+              </div>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                <thead><tr>
+                  <th style={{ textAlign:'left', padding:'7px 8px', color:T.mute, fontWeight:500, fontSize:10.5, borderBottom:`1.5px solid ${T.line}` }}>{lang==='ru'?'Вид':'Espèce'}</th>
+                  {cols.map(p=>(
+                    <th key={p.id} style={{ padding:'7px 8px', textAlign:'center', borderBottom:`1.5px solid ${T.line}`, minWidth:110 }}>
+                      <div className="serif" style={{ fontSize:13, fontWeight:700, color:T.ink }}>{p.name}</div>
+                    </th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {list.map(s=>{
+                    const r = RARITY[s.r], o = isObserved(s), nm = nameOf(s, lang)
+                    return (
+                      <tr key={s.id} style={{ opacity:o?1:.5 }}>
+                        <td onClick={()=>selSpFull(s.id)} style={{ padding:'7px 8px', borderBottom:`1px solid ${T.lineSoft}`, cursor:'pointer' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                            <span style={{ width:9, height:9, borderRadius:2, background:o?r.c:'#CFC3A8', flexShrink:0 }} />
+                            <span style={{ fontSize:15, filter:o?'none':'grayscale(.6)' }}>{s.e}</span>
+                            <span>
+                              <span style={{ display:'block', fontSize:12, fontWeight:o?600:400, color:T.ink }}>{nm.main}</span>
+                              {nm.sub && <span style={{ display:'block', fontSize:9, color:T.mute, opacity:.6 }}>{nm.sub}</span>}
+                            </span>
+                          </div>
+                        </td>
+                        {cols.map(pl=>{
+                          const m = s.obs[pl.name]||[]
+                          const best = m.length ? m.reduce((b,x)=>(METHODS[x]?.mult||0)>(METHODS[b]?.mult||0)?x:b, m[0]) : null
+                          const myInd = (s.inds||[]).filter(i=>i.by===pl.name)
+                          return (
+                            <td key={pl.id} style={{ padding:'6px 8px', borderBottom:`1px solid ${T.lineSoft}`, textAlign:'center' }}>
+                              {best ? (
+                                <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:3 }}>
+                                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:METHODS[best].c,
+                                    color:METHODS[best].on, borderRadius:9, padding:'4px 9px', fontSize:11, fontWeight:600 }}>
+                                    {best==='eye'?'👁':best==='scope'?'🔭':best==='night'?'🌙':'📷'}
+                                    {METHODS[best].l.split(' ')[0]}
+                                  </span>
+                                  {myInd.length>0 && (
+                                    <span style={{ display:'flex', gap:2, flexWrap:'wrap', justifyContent:'center' }}>
+                                      {myInd.map((ind,i)=>(
+                                        <span key={i} title={ind.n} onClick={(e)=>{e.stopPropagation(); selSpFull(s.id)}}
+                                          style={{ fontSize:9, background:'#8F4A22', color:'#fff', borderRadius:7,
+                                            padding:'1px 6px', fontWeight:600, cursor:'pointer' }}>{ind.n}</span>
+                                      ))}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : <span style={{ color:T.line, fontSize:14 }}>·</span>}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        })}
+        <div style={{ display:'flex', gap:11, flexWrap:'wrap', fontSize:11, color:T.soft, alignItems:'center', paddingTop:6 }}>
+          {Object.entries(METHODS).map(([k,m])=>(
+            <span key={k} style={{ display:'flex', alignItems:'center', gap:4 }}>
+              <span style={{ width:17, height:17, borderRadius:'50%', background:m.c, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9 }}>{k==='eye'?'👁':k==='scope'?'🔭':k==='night'?'🌙':'📷'}</span>{m.l} ×{m.mult}
+            </span>
+          ))}
+          <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+            <span style={{ fontSize:9, background:'#8F4A22', color:'#fff', borderRadius:7, padding:'1px 6px', fontWeight:600 }}>Loki</span>
+            {lang==='ru'?'названная особь':'individu nommé'}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  const MatrixCompact = () => (
+    <div style={{ padding:'12px 14px' }}>
       {CATS.filter(c=>SPECIES.some(s=>s.cat===c.id)).map(cat=>{
         const list = SPECIES.filter(s=>s.cat===cat.id)
         const cn = catNameOf(cat, lang)
@@ -185,8 +294,8 @@ export default function App() {
                           <span style={{ width:8, height:8, borderRadius:2, background:o?r.c:'#CFC3A8', flexShrink:0 }} />
                           <span style={{ fontSize:13, filter:o?'none':'grayscale(.6)' }}>{s.e}</span>
                           <span style={{ minWidth:0 }}>
-                            <span style={{ display:'block', fontSize:11, fontWeight:o?600:400, color:T.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: compact?100:180 }}>{nm.main}</span>
-                            {nm.sub && <span style={{ display:'block', fontSize:8.5, color:T.mute, opacity:.62, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: compact?100:180 }}>{nm.sub}</span>}
+                            <span style={{ display:'block', fontSize:11, fontWeight:o?600:400, color:T.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:100 }}>{nm.main}</span>
+                            {nm.sub && <span style={{ display:'block', fontSize:8.5, color:T.mute, opacity:.62, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:100 }}>{nm.sub}</span>}
                           </span>
                         </div>
                       </td>
@@ -258,8 +367,12 @@ export default function App() {
     return (
       <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.5)', zIndex:60, display:'flex', alignItems: wide?'center':'flex-end', justifyContent:'center', padding: wide?24:0 }} onClick={()=>{setCurSp(null);setCurInd(null)}}>
         <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius: wide?20:'20px 20px 0 0', width:'100%', maxWidth:640, maxHeight: wide?'88vh':'92vh', overflow:'auto', border:`1px solid ${T.line}` }}>
-          <div style={{ position:'relative', height:180, background:gradientFor(sp.id), display:'flex', alignItems:'flex-end', padding:20 }}>
+          <div style={{ position:'relative', height:180, display:'flex', alignItems:'flex-end', padding:20 }}>
+            <PhotoBg target={`sp:${sp.id}`} fallback={gradientFor(sp.id)} />
             <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.55), transparent 65%)' }} />
+            {edit && <div style={{ position:'absolute', top:14, right:52 }}>
+              <PhotoButton onClick={()=>setPhotoTarget({ target:`sp:${sp.id}`, label:sp.n })} />
+            </div>}
             <button onClick={()=>setCurSp(null)} style={{ position:'absolute', top:14, right:14, width:30, height:30, borderRadius:'50%', background:'rgba(0,0,0,.3)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <i className="ti ti-x" style={{ fontSize:15 }} aria-hidden="true" />
             </button>
@@ -304,8 +417,11 @@ export default function App() {
                 <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill,minmax(${wide?128:110}px,1fr))`, gap:9 }}>
                   {sp.inds.map((ind,i)=>(
                     <button key={i} onClick={()=>setCurInd(ind)} style={{ textAlign:'left', borderRadius:12, overflow:'hidden', border:`1px solid ${T.line}`, padding:0, position:'relative', minHeight:92 }}>
-                      <div style={{ position:'absolute', inset:0, background:gradientFor(sp.id+ind.n) }} />
+                      <PhotoBg target={`ind:${sp.id}:${ind.n}`} fallback={gradientFor(sp.id+ind.n)} />
                       <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(16,18,12,.72), transparent 58%)' }} />
+                      {edit && <div style={{ position:'absolute', top:6, right:6 }}>
+                        <PhotoButton small onClick={()=>setPhotoTarget({ target:`ind:${sp.id}:${ind.n}`, label:`${sp.n} — ${ind.n}` })} />
+                      </div>}
                       <div style={{ position:'relative', height:'100%', minHeight:92, display:'flex', flexDirection:'column', justifyContent:'space-between', padding:9 }}>
                         <span style={{ fontSize:20 }}>{sp.e}</span>
                         <div>
@@ -375,8 +491,12 @@ export default function App() {
     return (
       <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.6)', zIndex:80, display:'flex', alignItems: wide?'center':'flex-end', justifyContent:'center', padding: wide?24:0 }} onClick={()=>setCurInd(null)}>
         <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius: wide?20:'20px 20px 0 0', width:'100%', maxWidth:560, maxHeight: wide?'86vh':'90vh', overflow:'auto', border:`1px solid ${T.line}` }}>
-          <div style={{ position:'relative', height:160, background:gradientFor(sp.id+ind.n), display:'flex', alignItems:'flex-end', padding:18 }}>
+          <div style={{ position:'relative', height:200, display:'flex', alignItems:'flex-end', padding:18 }}>
+            <PhotoBg target={`ind:${sp.id}:${ind.n}`} fallback={gradientFor(sp.id+ind.n)} />
             <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.6), transparent 62%)' }} />
+            {edit && <div style={{ position:'absolute', top:12, right:48 }}>
+              <PhotoButton onClick={()=>setPhotoTarget({ target:`ind:${sp.id}:${ind.n}`, label:`${sp.n} — ${ind.n}` })} />
+            </div>}
             <button onClick={()=>setCurInd(null)} style={{ position:'absolute', top:12, right:12, width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,.3)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <i className="ti ti-x" style={{ fontSize:14 }} aria-hidden="true" />
             </button>
@@ -412,6 +532,7 @@ export default function App() {
                 <div className="serif" style={{ fontSize:13.5, color:T.ink, lineHeight:1.7, fontStyle:'italic' }}>« {ind.story} »</div>
               </div>
             )}
+            <IndPhotos spId={sp.id} indName={ind.n} />
             {ind.desc && (
               <div style={{ background:T.card, border:`1px solid ${T.line}`, borderRadius:12, padding:13 }}>
                 <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6 }}>Description</div>
@@ -649,7 +770,7 @@ export default function App() {
                 border:`1px solid ${T.line}`, fontWeight:600 }}>{c==='fr'?'FR':'RU'}</button>
             ))}
           </div>
-          {edit && <span style={{ fontSize:10.5, color:T.clay, fontWeight:600, background:'#F0DDD0', padding:'4px 9px', borderRadius:12 }}>Édition</span>}
+          {edit && <EditBadge lang={lang} />}
           <button onClick={()=>edit?setEdit(false):setPwOpen(true)} style={{ fontSize:11.5, color:T.soft, padding:'5px 10px', borderRadius:14, border:`1px solid ${T.line}`, display:'flex', alignItems:'center', gap:4 }}>
             <i className="ti ti-pencil" style={{ fontSize:13 }} aria-hidden="true" />{wide && (edit?'Quitter':'Édition')}
           </button>
@@ -658,7 +779,7 @@ export default function App() {
 
       {/* TABS */}
       <div style={{ display:'flex', gap:8, padding: wide?'14px 24px 0':'12px 16px 0', flexWrap:'wrap', alignItems:'center' }}>
-        {[['explore',t.explore,'ti-map-2'],['scores',t.scores,'ti-trophy'],['badges',t.badges,'ti-award']].map(([id,label,icon])=>{
+        {[['explore',t.explore,'ti-map-2'],['person',t.byPerson,'ti-users'],['scores',t.scores,'ti-trophy'],['badges',t.badges,'ti-award']].map(([id,label,icon])=>{
           const on = nav===id
           return (
             <button key={id} onClick={()=>setNav(id)} className="serif"
@@ -678,12 +799,14 @@ export default function App() {
       </div>
 
       {nav==='explore' && <Explore />}
+      {nav==='person' && <ByPerson wide={wide} lang={lang} onSelectSpecies={selSpFull} />}
       {nav==='scores' && <Scores />}
       {nav==='badges' && <Badges />}
 
       {curSp && <Detail />}
       {curInd && <IndividuSheet />}
       {curPlayer && <ScoreSheet />}
+      {photoTarget && <PhotoManager target={photoTarget.target} label={photoTarget.label} lang={lang} onClose={()=>setPhotoTarget(null)} />}
       {toast && <Toast msg={toast} />}
 
       {pwOpen && (
@@ -697,7 +820,7 @@ export default function App() {
               <button onClick={()=>{ setPwOpen(false); setPw('') }} style={{ flex:1, padding:'9px', borderRadius:10, border:`1px solid ${T.line}`, color:T.soft, fontSize:13 }}>Annuler</button>
               <button onClick={submitPw} className="serif" style={{ flex:1, padding:'9px', borderRadius:10, background:T.clay, color:'#fff', fontSize:13, fontWeight:600 }}>Déverrouiller</button>
             </div>
-            <div style={{ fontSize:10.5, color:T.mute, marginTop:10, textAlign:'center' }}>Indice démo : « pluduni »</div>
+            <div style={{ fontSize:10.5, color:T.mute, marginTop:10, textAlign:'center' }}>Indice démo : « arbalete »</div>
           </div>
         </div>
       )}
@@ -706,6 +829,37 @@ export default function App() {
 }
 
 
+
+function EditBadge({ lang }) {
+  const [info, setInfo] = useState({ n:0, mb:'0.0' })
+  useEffect(()=>{ let alive=true
+    import('./photos.js').then(m=>m.countPhotos()).then(r=>{ if(alive) setInfo(r) }).catch(()=>{})
+    const t = setInterval(()=>{ import('./photos.js').then(m=>m.countPhotos()).then(r=>{ if(alive) setInfo(r) }).catch(()=>{}) }, 4000)
+    return ()=>{ alive=false; clearInterval(t) }
+  },[])
+  return (
+    <span style={{ fontSize:10.5, color:'#B5602F', fontWeight:600, background:'#F0DDD0',
+      padding:'4px 9px', borderRadius:12, display:'inline-flex', alignItems:'center', gap:5 }}>
+      <i className="ti ti-pencil" style={{ fontSize:12 }} aria-hidden="true" />
+      {lang==='ru'?'Правка':'Édition'}
+      {info.n>0 && <span style={{ opacity:.75 }}>· {info.n} 📷 {info.mb} Mo</span>}
+    </span>
+  )
+}
+
+function IndPhotos({ spId, indName }) {
+  const { photos } = usePhotos(`ind:${spId}:${indName}`)
+  if (photos.length < 2) return null
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(96px,1fr))', gap:7, marginBottom:9 }}>
+      {photos.slice(1).map(p=>(
+        <div key={p.id} style={{ borderRadius:10, overflow:'hidden', border:'1px solid #D3C7AE', aspectRatio:'1/1' }}>
+          <img src={p.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', filter:LUT, display:'block' }} />
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function Shell({ children, lang, setLang, onHome }) {
   return (

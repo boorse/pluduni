@@ -83,10 +83,10 @@ export const POIS = [
   { id:'champ',  x:16, y:44, t:'cueil',  l:'Coin à cèpes',                 d:'Sous les vieux épicéas, après la pluie.' },
   { id:'myrt',   x:80, y:24, t:'cueil',  l:'Myrtilles',                    d:'Pinède sèche. Pic mi-juillet.' },
   { id:'argo',   x:58, y:74, t:'agri',   l:'Plantation d\u2019argousier',   d:'~3 ha. Récolte août-septembre.' },
-  { id:'verger', x:44, y:82, t:'agri',   l:'Verger & potager',             d:'Pommiers, légumes, ruches à venir.' },
-  { id:'maison', x:50, y:88, t:'bati',   l:'Maisons',                      d:'Maison principale et dépendances.' },
+  { id:'verger', gps:[57.30760,25.27300], x:44, y:82, t:'agri',   l:'Verger & potager',             d:'Pommiers, légumes, ruches à venir.' },
+  { id:'maison', gps:[57.30700,25.27450], x:50, y:88, t:'bati',   l:'Maisons',                      d:'Maison principale et dépendances.' },
   { id:'ciel',   x:26, y:80, t:'ciel',   l:'Spot d\u2019observation du ciel',d:'Prairie dégagée, aucune lumière parasite.' },
-  { id:'grotte', x:86, y:52, t:'explo',  l:'Cavité à explorer',            d:'Repérée mais jamais visitée.' },
+  { id:'grotte', gps:[57.31250,25.28600], x:86, y:52, t:'explo',  l:'Cavité à explorer',            d:'Repérée mais jamais visitée.' },
 ]
 
 export const POI_TYPES = {

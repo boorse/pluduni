@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { CATS, SPECIES, RARITY, isObserved } from './data'
 import { gradientFor, gradientForCat } from './gradients.js'
 import { nameOf, catNameOf } from './i18n.js'
+import { PhotoBg } from './photoui.jsx'
 
 const CARD_W = 92, CARD_H = 68, GAP_X = 14, LEVEL_Y = 118
 // décalage vertical par colonne — évite une map trop horizontale
@@ -206,7 +207,10 @@ function Card({ n, lang, expanded, toggle, onSp }) {
 
   const sp = n.sp, o = isObserved(sp), r = RARITY[sp.r]
   return (
-    <button onClick={onSp} style={{ ...base, background: o ? gradientFor(sp.id) : '#DDD3BE', opacity:o?1:.68 }}>
+    <button onClick={onSp} style={{ ...base, background:'#DDD3BE', opacity:o?1:.68 }}>
+      {o
+        ? <PhotoBg target={`sp:${sp.id}`} fallback={gradientFor(sp.id)} />
+        : <div style={{ position:'absolute', inset:0, background:'#DDD3BE' }} />}
       {o && <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(16,18,12,.66), transparent 55%)' }} />}
       <span style={{ position:'absolute', top:6, left:8, fontSize:17, filter:o?'none':'grayscale(.65)' }}>{sp.e}</span>
       <span style={{ position:'absolute', top:8, right:8, width:8, height:8, borderRadius:2, background:o?r.c:'#BFB39A' }} />
