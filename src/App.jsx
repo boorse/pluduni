@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { SPECIES, CATS, PLAYERS, RARITY, METHODS, SIZE_MULT, ACHIEVEMENTS, calcPts, totalPts, speciesPts, badgePts, isObserved } from './data'
 import MindMap from './mindmap.jsx'
 import { gradientFor, gradientForCat } from './gradients.js'
+import { UI, nameOf, catNameOf } from './i18n.js'
+import { Calendar, Territory, Gallery } from './screens.jsx'
 
 const T = {
   bg:'#EDE7D8', surface:'#E3DAC5', card:'#E6DDC8',
@@ -20,65 +22,89 @@ function useWide() {
   return wide
 }
 
-// ══════════════════ LANDING ══════════════════
-function Landing({ onEnter, onQuiz }) {
-  const wide = useWide()
-  const obs = SPECIES.filter(isObserved).length
+// ══════════════════ CHOIX DE LANGUE ══════════════════
+function LangPicker({ onPick }) {
   return (
-    <div style={{ minHeight:'100vh', background:T.bg }}>
-      <div style={{ position:'relative', height: wide?'62vh':'52vh', minHeight:340,
+    <div style={{ minHeight:'100vh', background:'linear-gradient(155deg,#22301C 0%,#3E5233 45%,#6E8557 100%)',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:24 }}>
+      <div style={{ fontSize:44, marginBottom:14 }}>🌿</div>
+      <div className="serif" style={{ fontSize:34, fontWeight:900, color:'#F2EEE2', letterSpacing:'-1px', marginBottom:6 }}>Pluduni</div>
+      <div style={{ fontSize:13, color:'rgba(237,231,216,.7)', marginBottom:30 }}>Vidzeme · Latvija</div>
+      <div style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent:'center' }}>
+        {[['fr','Français','Continuer en français'],['ru','Русский','Продолжить по-русски']].map(([code,label,sub])=>(
+          <button key={code} onClick={()=>onPick(code)} style={{ background:'rgba(242,238,226,.1)',
+            border:'1px solid rgba(242,238,226,.3)', borderRadius:16, padding:'18px 28px', minWidth:180,
+            display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+            <span className="serif" style={{ fontSize:20, fontWeight:700, color:'#F2EEE2' }}>{label}</span>
+            <span style={{ fontSize:11.5, color:'rgba(242,238,226,.65)' }}>{sub}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════ LANDING ══════════════════
+function Landing({ lang, setLang, go, onQuiz }) {
+  const wide = useWide()
+  const t = UI[lang]
+  const obs = SPECIES.filter(isObserved).length
+  const cards = [
+    { k:'app',       tag:t.consult, title:t.pokedex,   sub: lang==='ru'?'Карта живого, матрица, очки и значки':'Map du vivant, matrice, scores et badges', g:'linear-gradient(145deg,#2F4433 0%,#5B7A4E 55%,#8CA372 100%)', accent:'#C8DBA4' },
+    { k:'territory', tag:t.locate,  title:t.territory, sub: lang==='ru'?'Камеры, норы, грибные места, проекты':'Caméras, terriers, coins à champignons, projets', g:'linear-gradient(145deg,#3A4C52 0%,#5F7F84 55%,#93AFAE 100%)', accent:'#CFE4E2' },
+    { k:'calendar',  tag:t.plan,    title:t.calendar,  sub: lang==='ru'?'Работы и наблюдения по месяцам':'Travaux et observations mois par mois', g:'linear-gradient(145deg,#4A3F26 0%,#8A7440 55%,#BFA76A 100%)', accent:'#F0E2B8' },
+    { k:'gallery',   tag:t.browse,  title:t.gallery,   sub: lang==='ru'?'Все снимки особей':'Tous les clichés d\'individus', g:'linear-gradient(145deg,#3F3A4A 0%,#6E6580 55%,#A099AE 100%)', accent:'#E2DDEA' },
+    { k:'quiz',      tag:t.play,    title:t.quiz,      sub: lang==='ru'?'Карточки-угадайки из ваших наблюдений':'Des cartes à deviner, tirées de vos observations', g:'linear-gradient(145deg,#5C3A26 0%,#9A6B3E 55%,#C09A5E 100%)', accent:'#F0D9A8' },
+  ]
+  return (
+    <div style={{ minHeight:'100vh', background:'#EDE7D8' }}>
+      <div style={{ position:'relative', height: wide?'58vh':'46vh', minHeight:320,
         background:'linear-gradient(155deg,#22301C 0%,#3E5233 42%,#6E8557 78%,#94A874 100%)',
         display:'flex', flexDirection:'column', justifyContent:'flex-end', overflow:'hidden' }}>
-        <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 70% 20%, rgba(200,219,164,0.22), transparent 60%)' }} />
+        <div style={{ position:'absolute', inset:0, background:'radial-gradient(ellipse at 70% 20%, rgba(200,219,164,.22), transparent 60%)' }} />
         <div style={{ position:'absolute', top:0, left:0, right:0, padding: wide?'22px 40px':'18px 22px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span className="serif" style={{ fontSize: wide?26:21, fontWeight:900, color:'#EDE7D8', letterSpacing:'-0.5px' }}>Pluduni</span>
-          <span style={{ fontSize:12, color:'rgba(237,231,216,0.75)' }}>Vidzeme · Lettonie</span>
+          <span className="serif" style={{ fontSize: wide?26:21, fontWeight:900, color:'#EDE7D8' }}>Pluduni</span>
+          <div style={{ display:'flex', gap:5 }}>
+            {['fr','ru'].map(c=>(
+              <button key={c} onClick={()=>setLang(c)} style={{ fontSize:11, padding:'4px 10px', borderRadius:12,
+                background: lang===c?'rgba(242,238,226,.9)':'rgba(242,238,226,.13)',
+                color: lang===c?'#2B2620':'rgba(242,238,226,.8)', fontWeight:600,
+                border:'1px solid rgba(242,238,226,.28)' }}>{c==='fr'?'FR':'RU'}</button>
+            ))}
+          </div>
         </div>
-        <div style={{ position:'relative', padding: wide?'0 40px 42px':'0 22px 30px', maxWidth:900 }}>
-          <h1 className="serif" style={{ fontSize: wide?54:34, lineHeight:1.02, fontWeight:900, color:'#F2EEE2', letterSpacing:'-1.5px', marginBottom:14 }}>
-            Tout ce qui vit ici,<br/>répertorié.
+        <div style={{ position:'relative', padding: wide?'0 40px 40px':'0 22px 28px', maxWidth:900 }}>
+          <h1 className="serif" style={{ fontSize: wide?50:31, lineHeight:1.03, fontWeight:900, color:'#F2EEE2', letterSpacing:'-1.4px', marginBottom:13, whiteSpace:'pre-line' }}>
+            {t.heroTitle}
           </h1>
-          <p style={{ fontSize: wide?15:13.5, color:'rgba(237,231,216,0.82)', maxWidth:520, lineHeight:1.6 }}>
-            Un inventaire naturaliste collaboratif de la forêt, des lacs et de la rivière —
-            observé à l'œil nu, à la longue-vue, à la lampe et au piège photo.
-          </p>
+          <p style={{ fontSize: wide?14.5:13, color:'rgba(237,231,216,.82)', maxWidth:520, lineHeight:1.6 }}>{t.heroSub}</p>
         </div>
       </div>
 
-      <div style={{ padding: wide?'26px 40px 40px':'20px 22px 32px' }}>
-        <div style={{ display:'flex', gap:20, marginBottom:22, flexWrap:'wrap' }}>
-          {[[SPECIES.length,'espèces référencées'],[obs,'observées'],[CATS.length,'règnes'],[PLAYERS.length,'observateurs']].map(([v,l])=>(
+      <div style={{ padding: wide?'24px 40px 40px':'18px 22px 32px' }}>
+        <div style={{ display:'flex', gap:20, marginBottom:20, flexWrap:'wrap' }}>
+          {[[SPECIES.length,t.species],[obs,t.observed],[CATS.length,t.reigns],[PLAYERS.length,t.observers]].map(([v,l])=>(
             <div key={l}>
-              <div className="serif" style={{ fontSize: wide?30:24, fontWeight:900, color:T.ink, lineHeight:1 }}>{v}</div>
-              <div style={{ fontSize:11.5, color:T.mute, marginTop:3 }}>{l}</div>
+              <div className="serif" style={{ fontSize: wide?30:24, fontWeight:900, color:'#2B2620', lineHeight:1 }}>{v}</div>
+              <div style={{ fontSize:11.5, color:'#9A9081', marginTop:3 }}>{l}</div>
             </div>
           ))}
         </div>
-
-        <div style={{ display:'grid', gridTemplateColumns: wide?'1fr 1fr':'1fr', gap:14 }}>
-          <button onClick={onEnter} style={{ textAlign:'left', borderRadius:20, overflow:'hidden', border:'none', padding:0, position:'relative', minHeight: wide?230:170 }}>
-            <div style={{ position:'absolute', inset:0, background:'linear-gradient(145deg,#2F4433 0%,#5B7A4E 55%,#8CA372 100%)' }} />
-            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,28,16,0.62), transparent 62%)' }} />
-            <div style={{ position:'relative', height:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', padding: wide?'26px':'20px' }}>
-              <span style={{ fontSize:11, letterSpacing:'1.5px', textTransform:'uppercase', color:T.leaf, fontWeight:600, marginBottom:6 }}>Consulter</span>
-              <span className="serif" style={{ fontSize: wide?34:26, fontWeight:900, color:'#F2EEE2', lineHeight:1.05, letterSpacing:'-0.8px' }}>Le Pokédex</span>
-              <span style={{ fontSize:12.5, color:'rgba(237,231,216,0.78)', marginTop:7, maxWidth:340 }}>
-                Mindmap du vivant, matrice des observations, scores et badges.
-              </span>
-            </div>
-          </button>
-
-          <button onClick={onQuiz} style={{ textAlign:'left', borderRadius:20, overflow:'hidden', border:'none', padding:0, position:'relative', minHeight: wide?230:170 }}>
-            <div style={{ position:'absolute', inset:0, background:'linear-gradient(145deg,#5C3A26 0%,#9A6B3E 55%,#C09A5E 100%)' }} />
-            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(38,24,14,0.62), transparent 62%)' }} />
-            <div style={{ position:'relative', height:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', padding: wide?'26px':'20px' }}>
-              <span style={{ fontSize:11, letterSpacing:'1.5px', textTransform:'uppercase', color:'#F0D9A8', fontWeight:600, marginBottom:6 }}>Jouer</span>
-              <span className="serif" style={{ fontSize: wide?34:26, fontWeight:900, color:'#F2EEE2', lineHeight:1.05, letterSpacing:'-0.8px' }}>Le Quiz</span>
-              <span style={{ fontSize:12.5, color:'rgba(242,238,226,0.78)', marginTop:7, maxWidth:340 }}>
-                Des cartes à deviner, tirées de vos propres observations.
-              </span>
-            </div>
-          </button>
+        <div style={{ display:'grid', gridTemplateColumns: wide?'repeat(auto-fit,minmax(230px,1fr))':'1fr', gap:13 }}>
+          {cards.map(c=>(
+            <button key={c.k} onClick={()=> c.k==='quiz' ? onQuiz() : go(c.k)}
+              style={{ textAlign:'left', borderRadius:20, overflow:'hidden', border:'none', padding:0,
+                position:'relative', minHeight: wide?200:150 }}>
+              <div style={{ position:'absolute', inset:0, background:c.g }} />
+              <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(18,20,14,.66), transparent 60%)' }} />
+              <div style={{ position:'relative', height:'100%', minHeight: wide?200:150, display:'flex', flexDirection:'column',
+                justifyContent:'flex-end', padding: wide?'22px':'18px' }}>
+                <span style={{ fontSize:10.5, letterSpacing:'1.4px', textTransform:'uppercase', color:c.accent, fontWeight:700, marginBottom:5 }}>{c.tag}</span>
+                <span className="serif" style={{ fontSize: wide?28:23, fontWeight:900, color:'#F2EEE2', lineHeight:1.05, letterSpacing:'-.6px' }}>{c.title}</span>
+                <span style={{ fontSize:12, color:'rgba(242,238,226,.76)', marginTop:6, lineHeight:1.45 }}>{c.sub}</span>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -88,7 +114,8 @@ function Landing({ onEnter, onQuiz }) {
 // ══════════════════ APP ══════════════════
 export default function App() {
   const wide = useWide()
-  const [screen, setScreen] = useState('landing')
+  const [screen, setScreen] = useState('lang')
+  const [lang, setLang] = useState('fr')
   const [nav, setNav] = useState('explore')
   const [curCat, setCurCat] = useState(null)
   const [curSub, setCurSub] = useState('Tous')
@@ -111,52 +138,76 @@ export default function App() {
   const selSpFull = (id) => { const s = SPECIES.find(x=>x.id===id); setCurCat(s?.cat); setCurSp(id); setDetTab('obs') }
   const submitPw = () => { if (pw==='pluduni'){ setEdit(true); setPwOpen(false); setPw('') } else setPw('') }
 
-  if (screen === 'landing') {
-    return (
-      <>
-        <Landing onEnter={()=>setScreen('app')} onQuiz={()=>showToast("Oups — le Quiz n'est pas encore prêt. Il arrivera quand le Pokédex sera bien rempli !")} />
-        {toast && <Toast msg={toast} />}
-      </>
-    )
-  }
+  const t = UI[lang]
+
+  if (screen === 'lang') return <LangPicker onPick={(c)=>{ setLang(c); setScreen('landing') }} />
+  if (screen === 'landing') return (
+    <>
+      <Landing lang={lang} setLang={setLang} go={setScreen} onQuiz={()=>showToast(t.quizSoon)} />
+      {toast && <Toast msg={toast} />}
+    </>
+  )
+  if (screen === 'calendar')  return <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}><Calendar wide={wide} lang={lang} onBack={()=>setScreen('landing')} /></Shell>
+  if (screen === 'territory') return <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}><Territory wide={wide} lang={lang} onBack={()=>setScreen('landing')} /></Shell>
+  if (screen === 'gallery')   return (
+    <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}>
+      <Gallery wide={wide} lang={lang} onBack={()=>setScreen('landing')} onSelectSpecies={(id)=>{ setScreen('app'); selSpFull(id) }} />
+    </Shell>
+  )
 
   // ═════ MATRIX PANE ═════
   const MatrixPane = ({ compact }) => (
     <div style={{ padding: compact?'12px 14px':'14px 18px' }}>
       {CATS.filter(c=>SPECIES.some(s=>s.cat===c.id)).map(cat=>{
         const list = SPECIES.filter(s=>s.cat===cat.id)
+        const cn = catNameOf(cat, lang)
         return (
           <div key={cat.id} style={{ marginBottom:16 }}>
             <div className="serif" style={{ fontSize:14, fontWeight:600, color:T.ink, marginBottom:7, display:'flex', alignItems:'center', gap:6 }}>
-              <span>{cat.e}</span>{cat.n}
+              <span>{cat.e}</span>{cn.main}
               <span style={{ fontSize:10.5, color:T.mute, fontWeight:400 }}>· {list.filter(isObserved).length}/{list.length}</span>
             </div>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead><tr>
-                <th style={{ textAlign:'left', padding:'5px 6px', color:T.mute, fontWeight:500, fontSize:10, borderBottom:`1px solid ${T.line}` }}>Espèce</th>
-                {PLAYERS.map(p=><th key={p.id} style={{ padding:'5px 3px', textAlign:'center', color:T.soft, fontWeight:600, fontSize:10, borderBottom:`1px solid ${T.line}`, width:34 }}>{p.id}</th>)}
+                <th style={{ textAlign:'left', padding:'5px 6px', color:T.mute, fontWeight:500, fontSize:10, borderBottom:`1px solid ${T.line}` }}>{lang==='ru'?'Вид':'Espèce'}</th>
+                <th style={{ padding:'5px 3px', textAlign:'center', color:T.mute, fontWeight:500, fontSize:10, borderBottom:`1px solid ${T.line}`, width:30 }} title="Individus identifiés">👤</th>
+                {PLAYERS.map(p=><th key={p.id} title={p.name} style={{ padding:'5px 3px', textAlign:'center', color:T.soft, fontWeight:600, fontSize:10, borderBottom:`1px solid ${T.line}`, width:38 }}>{p.id}</th>)}
               </tr></thead>
               <tbody>
                 {list.map(s=>{
-                  const r = RARITY[s.r]; const o = isObserved(s)
+                  const r = RARITY[s.r], o = isObserved(s)
+                  const nm = nameOf(s, lang)
+                  const nInd = (s.inds||[]).length
                   return (
                     <tr key={s.id} onClick={()=>selSpFull(s.id)} style={{ cursor:'pointer', opacity:o?1:0.5 }}>
                       <td style={{ padding:'5px 6px', borderBottom:`1px solid ${T.lineSoft}` }}>
                         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                          <span style={{ width:8, height:8, borderRadius:'50%', background:o?r.c:'#CFC3A8', flexShrink:0 }} />
-                          <span style={{ fontSize:13, filter:o?'none':'grayscale(0.6)' }}>{s.e}</span>
-                          <span style={{ fontSize:11, fontWeight:o?600:400, color:T.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: compact?110:170 }}>{s.n}</span>
+                          <span style={{ width:8, height:8, borderRadius:2, background:o?r.c:'#CFC3A8', flexShrink:0 }} />
+                          <span style={{ fontSize:13, filter:o?'none':'grayscale(.6)' }}>{s.e}</span>
+                          <span style={{ minWidth:0 }}>
+                            <span style={{ display:'block', fontSize:11, fontWeight:o?600:400, color:T.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: compact?100:180 }}>{nm.main}</span>
+                            {nm.sub && <span style={{ display:'block', fontSize:8.5, color:T.mute, opacity:.62, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: compact?100:180 }}>{nm.sub}</span>}
+                          </span>
                         </div>
+                      </td>
+                      <td style={{ padding:'5px 3px', textAlign:'center', borderBottom:`1px solid ${T.lineSoft}` }}>
+                        {nInd>0 && <span className="serif" style={{ fontSize:10.5, fontWeight:700, color:'#8F4A22', background:'#F0E4CF', borderRadius:8, padding:'1px 6px' }}>{nInd}</span>}
                       </td>
                       {PLAYERS.map(pl=>{
                         const m = s.obs[pl.name]||[]
                         const best = m.length ? m.reduce((b,x)=>(METHODS[x]?.mult||0)>(METHODS[b]?.mult||0)?x:b, m[0]) : null
+                        const myInd = (s.inds||[]).filter(i=>i.by===pl.name).length
                         return (
                           <td key={pl.id} style={{ padding:'5px 3px', borderBottom:`1px solid ${T.lineSoft}`, textAlign:'center' }}>
-                            <div title={best?`${pl.name} — ${METHODS[best].l}`:pl.name}
-                              style={{ width:20, height:20, borderRadius:'50%', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9,
+                            <div title={best?`${pl.name} — ${METHODS[best].l}${myInd?` · ${myInd} individu(s)`:''}`:pl.name}
+                              style={{ position:'relative', width:22, height:22, borderRadius:'50%', margin:'0 auto',
+                                display:'flex', alignItems:'center', justifyContent:'center', fontSize:9,
                                 background:best?METHODS[best].c:'#E0D8C6', border:`1px solid ${best?METHODS[best].c:T.line}` }}>
                               {best?(best==='eye'?'👁':best==='scope'?'🔭':best==='night'?'🌙':'📷'):''}
+                              {myInd>0 && <span className="serif" style={{ position:'absolute', top:-4, right:-5,
+                                minWidth:13, height:13, borderRadius:7, background:'#8F4A22', color:'#fff',
+                                fontSize:8, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center',
+                                padding:'0 3px', border:'1px solid #EDE7D8' }}>{myInd}</span>}
                             </div>
                           </td>
                         )
@@ -169,13 +220,16 @@ export default function App() {
           </div>
         )
       })}
-      <div style={{ display:'flex', gap:9, flexWrap:'wrap', fontSize:10, color:T.soft, paddingTop:4 }}>
+      <div style={{ display:'flex', gap:9, flexWrap:'wrap', fontSize:10, color:T.soft, paddingTop:4, alignItems:'center' }}>
         {Object.entries(METHODS).map(([k,m])=>(
           <span key={k} style={{ display:'flex', alignItems:'center', gap:4 }}>
-            <span style={{ width:15, height:15, borderRadius:'50%', background:m.c, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8 }}>{k==='eye'?'👁':k==='scope'?'🔭':k==='night'?'🌙':'📷'}</span>
-            ×{m.mult}
+            <span style={{ width:15, height:15, borderRadius:'50%', background:m.c, display:'flex', alignItems:'center', justifyContent:'center', fontSize:8 }}>{k==='eye'?'👁':k==='scope'?'🔭':k==='night'?'🌙':'📷'}</span>×{m.mult}
           </span>
         ))}
+        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+          <span style={{ minWidth:13, height:13, borderRadius:7, background:'#8F4A22', color:'#fff', fontSize:8, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px' }}>2</span>
+          {lang==='ru'?'особей':'individus'}
+        </span>
       </div>
     </div>
   )
@@ -200,7 +254,7 @@ export default function App() {
     const allM = new Set(Object.values(sp.obs).flat())
     const baseP = Math.round(r.p * SIZE_MULT[sp.sz])
     const seasons = sp.saisons
-    const tabs = [['obs','Observations'],['infos','Infos'],...(seasons?[['saisons','Saisons']]:[])]
+    const tabs = [['obs',t.obs],['infos',t.infos],...(seasons?[['saisons',t.seasons]]:[])]
     return (
       <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.5)', zIndex:60, display:'flex', alignItems: wide?'center':'flex-end', justifyContent:'center', padding: wide?24:0 }} onClick={()=>{setCurSp(null);setCurInd(null)}}>
         <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius: wide?20:'20px 20px 0 0', width:'100%', maxWidth:640, maxHeight: wide?'88vh':'92vh', overflow:'auto', border:`1px solid ${T.line}` }}>
@@ -211,12 +265,13 @@ export default function App() {
             </button>
             <div style={{ position:'absolute', top:14, left:16, fontSize:44 }}>{sp.e}</div>
             <div style={{ position:'relative' }}>
-              <div className="serif" style={{ fontSize:26, fontWeight:900, color:'#F2EEE2', lineHeight:1.05 }}>{sp.n}</div>
+              <div className="serif" style={{ fontSize:26, fontWeight:900, color:'#F2EEE2', lineHeight:1.05 }}>{nameOf(sp,lang).main}</div>
+              {nameOf(sp,lang).sub && <div style={{ fontSize:13, color:'rgba(242,238,226,.5)', marginTop:1 }}>{nameOf(sp,lang).sub}</div>}
               <div style={{ fontSize:12, color:'rgba(242,238,226,.78)', fontStyle:'italic', marginTop:2 }}>{sp.lat}</div>
               <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap' }}>
                 <span style={{ fontSize:10.5, fontWeight:600, padding:'3px 9px', borderRadius:12, background:r.c, color:'#fff' }}>{r.l}</span>
                 {[...allM].map(m => METHODS[m] && <span key={m} style={{ fontSize:10.5, padding:'3px 9px', borderRadius:12, background:METHODS[m].c, color:METHODS[m].on }}>{METHODS[m].l}</span>)}
-                {!o && <span style={{ fontSize:10.5, padding:'3px 9px', borderRadius:12, background:'rgba(255,255,255,.22)', color:'#F2EEE2' }}>Pas encore observée</span>}
+                {!o && <span style={{ fontSize:10.5, padding:'3px 9px', borderRadius:12, background:'rgba(255,255,255,.22)', color:'#F2EEE2' }}>{t.notObserved}</span>}
               </div>
             </div>
           </div>
@@ -229,7 +284,7 @@ export default function App() {
             </div>
 
             {detTab==='obs' && <>
-              <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Qui a observé</div>
+              <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>{t.whoObserved}</div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
                 {PLAYERS.map(pl=>{
                   const m = sp.obs[pl.name]||[]
@@ -245,7 +300,7 @@ export default function App() {
                 })}
               </div>
               {sp.inds.length>0 && <>
-                <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>Individus observés ({sp.inds.length})</div>
+                <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>{t.individuals} ({sp.inds.length})</div>
                 <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill,minmax(${wide?128:110}px,1fr))`, gap:9 }}>
                   {sp.inds.map((ind,i)=>(
                     <button key={i} onClick={()=>setCurInd(ind)} style={{ textAlign:'left', borderRadius:12, overflow:'hidden', border:`1px solid ${T.line}`, padding:0, position:'relative', minHeight:92 }}>
@@ -547,7 +602,7 @@ export default function App() {
             ))}
           </div>
           <div style={{ background:T.surface, borderRadius:16, border:`1px solid ${T.line}`, overflow:'hidden' }}>
-            {mobileTab==='map' ? <MindMap onSelectSpecies={selSpFull} /> : <MatrixPane compact />}
+            {mobileTab==='map' ? <MindMap onSelectSpecies={selSpFull} lang={lang} /> : <MatrixPane compact />}
           </div>
         </div>
       )
@@ -561,16 +616,16 @@ export default function App() {
           style={{ flex:mapFlex, minWidth:0, background:T.surface, borderRadius:18, border:`1px solid ${focus==='map'?T.clay:T.line}`,
             overflow:'hidden', display:'flex', flexDirection:'column',
             transition:'flex .28s cubic-bezier(.4,0,.2,1), border-color .2s' }}>
-          <PaneHeader title="La map du vivant" icon="ti-hierarchy-2" expanded={focus==='map'} onExpand={()=>setFocus(focus==='map'?null:'map')} />
+          <PaneHeader title={t.mapTitle} icon="ti-hierarchy-2" expanded={focus==='map'} onExpand={()=>setFocus(focus==='map'?null:'map')} />
           <div style={{ flex:1, overflow:'hidden' }}>
-            <MindMap onSelectSpecies={selSpFull} />
+            <MindMap onSelectSpecies={selSpFull} lang={lang} />
           </div>
         </div>
         <div onMouseEnter={()=>setFocus('matrix')} onClick={()=>setFocus('matrix')}
           style={{ flex:matFlex, minWidth:0, background:T.bg, borderRadius:18, border:`1px solid ${focus==='matrix'?T.clay:T.line}`,
             overflow:'hidden', display:'flex', flexDirection:'column',
             transition:'flex .28s cubic-bezier(.4,0,.2,1), border-color .2s' }}>
-          <PaneHeader title="Matrice des observations" icon="ti-layout-grid" expanded={focus==='matrix'} onExpand={()=>setFocus(focus==='matrix'?null:'matrix')} />
+          <PaneHeader title={t.matrixTitle} icon="ti-layout-grid" expanded={focus==='matrix'} onExpand={()=>setFocus(focus==='matrix'?null:'matrix')} />
           <div style={{ flex:1, overflowY:'auto' }}>
             <MatrixPane compact={focus!=='matrix'} />
           </div>
@@ -587,6 +642,13 @@ export default function App() {
           <i className="ti ti-leaf" style={{ fontSize:19, color:T.sageDark }} aria-hidden="true" />Pluduni
         </button>
         <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+          <div style={{ display:'flex', gap:3 }}>
+            {['fr','ru'].map(c=>(
+              <button key={c} onClick={()=>setLang(c)} style={{ fontSize:10.5, padding:'4px 9px', borderRadius:11,
+                background: lang===c?T.clay:'transparent', color: lang===c?'#fff':T.soft,
+                border:`1px solid ${T.line}`, fontWeight:600 }}>{c==='fr'?'FR':'RU'}</button>
+            ))}
+          </div>
           {edit && <span style={{ fontSize:10.5, color:T.clay, fontWeight:600, background:'#F0DDD0', padding:'4px 9px', borderRadius:12 }}>Édition</span>}
           <button onClick={()=>edit?setEdit(false):setPwOpen(true)} style={{ fontSize:11.5, color:T.soft, padding:'5px 10px', borderRadius:14, border:`1px solid ${T.line}`, display:'flex', alignItems:'center', gap:4 }}>
             <i className="ti ti-pencil" style={{ fontSize:13 }} aria-hidden="true" />{wide && (edit?'Quitter':'Édition')}
@@ -596,7 +658,7 @@ export default function App() {
 
       {/* TABS */}
       <div style={{ display:'flex', gap:8, padding: wide?'14px 24px 0':'12px 16px 0', flexWrap:'wrap', alignItems:'center' }}>
-        {[['explore','Explorer','ti-map-2'],['scores','Scores','ti-trophy'],['badges','Badges','ti-award']].map(([id,label,icon])=>{
+        {[['explore',t.explore,'ti-map-2'],['scores',t.scores,'ti-trophy'],['badges',t.badges,'ti-award']].map(([id,label,icon])=>{
           const on = nav===id
           return (
             <button key={id} onClick={()=>setNav(id)} className="serif"
@@ -643,6 +705,29 @@ export default function App() {
   )
 }
 
+
+
+function Shell({ children, lang, setLang, onHome }) {
+  return (
+    <div style={{ minHeight:'100vh', background:'#EDE7D8' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'12px 24px', borderBottom:'1px solid #D3C7AE', background:'#E3DAC5', position:'sticky', top:0, zIndex:30 }}>
+        <button onClick={onHome} className="serif" style={{ fontSize:20, fontWeight:900, color:'#2B2620',
+          display:'flex', alignItems:'center', gap:7 }}>
+          <i className="ti ti-leaf" style={{ fontSize:19, color:'#4A5D32' }} aria-hidden="true" />Pluduni
+        </button>
+        <div style={{ display:'flex', gap:5 }}>
+          {['fr','ru'].map(c=>(
+            <button key={c} onClick={()=>setLang(c)} style={{ fontSize:11, padding:'4px 10px', borderRadius:12,
+              background: lang===c?'#B5602F':'transparent', color: lang===c?'#fff':'#6B6357',
+              border:'1px solid #D3C7AE', fontWeight:600 }}>{c==='fr'?'FR':'RU'}</button>
+          ))}
+        </div>
+      </div>
+      {children}
+    </div>
+  )
+}
 
 function MiniMap({ gps }) {
   const [lat, lon] = gps

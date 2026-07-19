@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { CATS, SPECIES, RARITY, isObserved } from './data'
 import { gradientFor, gradientForCat } from './gradients.js'
+import { nameOf, catNameOf } from './i18n.js'
 
 const CARD_W = 92, CARD_H = 68, GAP_X = 14, LEVEL_Y = 118
 // décalage vertical par colonne — évite une map trop horizontale
 const STAGGER = [0, 46, 16, 62, 30, 74]
 
-export default function MindMap({ onSelectSpecies }) {
+export default function MindMap({ onSelectSpecies, lang='fr' }) {
   const [expanded, setExpanded] = useState(() => new Set())
   const [tf, setTf] = useState({ x: 0, y: 0, k: 1 })
   const wrapRef = useRef(null)
@@ -122,7 +123,7 @@ export default function MindMap({ onSelectSpecies }) {
         style={{ flex:1, minHeight:300, overflow:'hidden', position:'relative',
           cursor: drag.current.on?'grabbing':'grab', touchAction:'none',
           userSelect:'none', WebkitUserSelect:'none',
-          backgroundImage:`linear-gradient(#D7CBB2 1px, transparent 1px), linear-gradient(90deg, #D7CBB2 1px, transparent 1px)`,
+          backgroundImage:`linear-gradient(rgba(190,178,152,.32) 1px, transparent 1px), linear-gradient(90deg, rgba(190,178,152,.32) 1px, transparent 1px)`,
           backgroundSize:`${gridStep*tf.k}px ${gridStep*tf.k}px`,
           backgroundPosition:`${tf.x}px ${tf.y}px`,
           backgroundColor:'#E3DAC5' }}>
@@ -134,7 +135,7 @@ export default function MindMap({ onSelectSpecies }) {
                 fill="none" stroke={l.depth===0?'#B0A182':'#C6B99E'} strokeWidth={l.depth===0?2:1.4} />
             })}
           </svg>
-          {nodes.map(n => <Card key={n.id} n={n} expanded={expanded} toggle={guard(()=>toggle(n.id))} onSp={guard(()=>onSelectSpecies(n.sp.id))} />)}
+          {nodes.map(n => <Card key={n.id} n={n} lang={lang} expanded={expanded} toggle={guard(()=>toggle(n.id))} onSp={guard(()=>onSelectSpecies(n.sp.id))} />)}
           <div style={{ width, height }} />
         </div>
       </div>
@@ -156,7 +157,7 @@ export default function MindMap({ onSelectSpecies }) {
 
 const btn = { fontSize:10.5, padding:'5px 9px', borderRadius:12, background:'#EDE7D8', color:'#6B6357', border:'1px solid #D3C7AE' }
 
-function Card({ n, expanded, toggle, onSp }) {
+function Card({ n, lang, expanded, toggle, onSp }) {
   const open = expanded.has(n.id)
   const hasKids = n.children?.length > 0
   const base = {
@@ -183,7 +184,8 @@ function Card({ n, expanded, toggle, onSp }) {
         <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(18,20,14,.62), transparent 58%)' }} />
         <span style={{ position:'absolute', top:6, left:8, fontSize:17 }}>{n.e}</span>
         {hasKids && <Chev open={open} />}
-        <span style={{ position:'relative', fontSize:10.5, fontWeight:700, color:'#F2EEE2', lineHeight:1.15 }}>{n.label}</span>
+        <span style={{ position:'relative', fontSize:10.5, fontWeight:700, color:'#F2EEE2', lineHeight:1.15 }}>{catNameOf(n.cat, lang).main}</span>
+        {catNameOf(n.cat, lang).sub && <span style={{ position:'relative', fontSize:7.5, color:'rgba(242,238,226,.5)', lineHeight:1.1 }}>{catNameOf(n.cat, lang).sub}</span>}
         <span style={{ position:'relative', fontSize:8.5, color:'rgba(242,238,226,.75)' }}>{obs}/{all.length}</span>
       </button>
     )
@@ -208,7 +210,8 @@ function Card({ n, expanded, toggle, onSp }) {
       {o && <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(16,18,12,.66), transparent 55%)' }} />}
       <span style={{ position:'absolute', top:6, left:8, fontSize:17, filter:o?'none':'grayscale(.65)' }}>{sp.e}</span>
       <span style={{ position:'absolute', top:8, right:8, width:8, height:8, borderRadius:2, background:o?r.c:'#BFB39A' }} />
-      <span style={{ position:'relative', fontSize:9.5, fontWeight:o?700:500, color:o?'#F2EEE2':'#5A5245', lineHeight:1.15 }}>{sp.n}</span>
+      <span style={{ position:'relative', fontSize:9.5, fontWeight:o?700:500, color:o?'#F2EEE2':'#5A5245', lineHeight:1.12 }}>{nameOf(sp, lang).main}</span>
+      {nameOf(sp, lang).sub && <span style={{ position:'relative', fontSize:7.5, color:o?'rgba(242,238,226,.5)':'rgba(90,82,69,.45)', lineHeight:1.1, marginTop:1 }}>{nameOf(sp, lang).sub}</span>}
     </button>
   )
 }
