@@ -8,9 +8,11 @@ const CARD_W = 92, CARD_H = 68, GAP_X = 14, LEVEL_Y = 118
 // décalage vertical par colonne — évite une map trop horizontale
 const STAGGER = [0, 46, 16, 62, 30, 74]
 
+// état du geste au niveau module : ne disparaît pas si le composant se reconstruit
+const G = { on:false, sx:0, sy:0, ox:0, oy:0, moved:false, pinch:null }
+
 export default function MindMap({ onSelectSpecies, lang='fr', expanded, setExpanded, tf, setTf }) {
   const wrapRef = useRef(null)
-  const drag = useRef({ on: false, sx: 0, sy: 0, ox: 0, oy: 0, moved: false })
 
   const toggle = useCallback((id) => {
     setExpanded(prev => {
@@ -98,7 +100,6 @@ export default function MindMap({ onSelectSpecies, lang='fr', expanded, setExpan
     return () => { el.removeEventListener('wheel', onWheel); el.removeEventListener('touchmove', stop) }
   }, [onWheel])
 
-  const pinch = useRef(null)
   const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
   const mid  = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 })
 
@@ -106,36 +107,52 @@ export default function MindMap({ onSelectSpecies, lang='fr', expanded, setExpan
     if (e.touches && e.touches.length === 2) {
       const el = wrapRef.current; if (!el) return
       const r = el.getBoundingClientRect(), m = mid(e.touches)
-      pinch.current = { d: dist(e.touches), k: tf.k, x: tf.x, y: tf.y, mx: m.x - r.left, my: m.y - r.top }
-      drag.current.on = false
+      G.pinch = { d: dist(e.touches), k: tf.k, x: tf.x, y: tf.y, mx: m.x - r.left, my: m.y - r.top }
+      G.on = false
       return
     }
     const p = e.touches ? e.touches[0] : e
-    drag.current = { on: true, sx: p.clientX, sy: p.clientY, ox: tf.x, oy: tf.y, moved: false }
+    Object.assign(G, { on: true, sx: p.clientX, sy: p.clientY, ox: tf.x, oy: tf.y, moved: false })
   }
 
   const move = (e) => {
-    if (e.touches && e.touches.length === 2 && pinch.current) {
+    if (e.touches && e.touches.length === 2 && G.pinch) {
       e.preventDefault()
-      const p0 = pinch.current
+      const p0 = G.pinch
       const ratio = dist(e.touches) / p0.d
       const k2 = Math.min(2.4, Math.max(0.25, p0.k * ratio))
       const r2 = k2 / p0.k
       setTf({ k: k2, x: p0.mx - (p0.mx - p0.x) * r2, y: p0.my - (p0.my - p0.y) * r2 })
-      drag.current.moved = true
+      G.moved = true
       return
     }
-    if (!drag.current.on) return
+    if (!G.on) return
     const p = e.touches ? e.touches[0] : e
-    const dx = p.clientX - drag.current.sx, dy = p.clientY - drag.current.sy
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.current.moved = true
-    setTf(t => ({ ...t, x: drag.current.ox + dx, y: drag.current.oy + dy }))
+    const dx = p.clientX - G.sx, dy = p.clientY - G.sy
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) G.moved = true
+    setTf(t => ({ ...t, x: G.ox + dx, y: G.oy + dy }))
   }
 
   const up = (e) => {
-    if (!e?.touches || e.touches.length === 0) { pinch.current = null; drag.current.on = false }
+    if (!e?.touches || e.touches.length === 0) { G.pinch = null; G.on = false }
   }
-  const guard = (fn) => (e) => { if (drag.current.moved) { e.preventDefault(); return } fn() }
+
+  // suivi global : le geste continue même si le composant se reconstruit
+  useEffect(() => {
+    const mm = (e) => { if (G.on || G.pinch) move(e) }
+    const mu = () => { G.on = false; G.pinch = null }
+    window.addEventListener('mousemove', mm)
+    window.addEventListener('mouseup', mu)
+    window.addEventListener('touchmove', mm, { passive: false })
+    window.addEventListener('touchend', mu)
+    return () => {
+      window.removeEventListener('mousemove', mm)
+      window.removeEventListener('mouseup', mu)
+      window.removeEventListener('touchmove', mm)
+      window.removeEventListener('touchend', mu)
+    }
+  })
+  const guard = (fn) => (e) => { if (G.moved) { e.preventDefault(); return } fn() }
 
   const gridStep = 34
   return (
@@ -157,11 +174,10 @@ export default function MindMap({ onSelectSpecies, lang='fr', expanded, setExpan
       </div>
 
       <div ref={wrapRef}
-        onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
-        onTouchStart={down} onTouchMove={move} onTouchEnd={up}
+        onMouseDown={down} onTouchStart={down}
         onDragStart={e=>e.preventDefault()}
         style={{ flex:1, minHeight:300, overflow:'hidden', position:'relative',
-          cursor: drag.current.on?'grabbing':'grab', touchAction:'none',
+          cursor: G.on?'grabbing':'grab', touchAction:'none',
           userSelect:'none', WebkitUserSelect:'none',
           backgroundImage:`linear-gradient(rgba(190,178,152,.32) 1px, transparent 1px), linear-gradient(90deg, rgba(190,178,152,.32) 1px, transparent 1px)`,
           backgroundSize:`${gridStep*tf.k}px ${gridStep*tf.k}px`,
