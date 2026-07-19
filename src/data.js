@@ -59,18 +59,38 @@ export const CATS = [
 export const SPECIES = [
   { id:'elan', n:'Élan', lat:'Alces alces', e:'🫎', cat:'mammiferes', sub:'Cervidés', r:'rare', sz:'xl',
     obs:{ Ferdinand:['cam'] }, bonus:{},
-    inds:[{n:'Gustav',note:'Femelle ou jeune mâle, sans bois',d:'12/06/2026',b:[]}],
+    inds:[{n:'Gustav',note:'Femelle ou jeune mâle, sans bois',d:'12/06/2026',b:[],
+       gps:[57.3115,25.2712], by:'Ferdinand', method:'cam', weather:'Nuit claire, 14 °C', time:'23h20',
+       story:"Il surgit de nulle part à 23h20, immense, et reste quatre minutes devant l'objectif à brouter les jeunes pousses. L'échelle est saisissante : sa tête dépasse la branche basse du bouleau.",
+       desc:'Absence de bois — femelle adulte ou jeune mâle de 2 ans. Robe brun foncé, garrot très marqué.'}],
+    anecdote:"L'élan est le plus grand cervidé du monde : un mâle adulte peut atteindre 800 kg. Il nage remarquablement bien et peut plonger jusqu'à 5 m pour atteindre des plantes aquatiques. Ses longues pattes lui permettent de traverser 1 m de neige sans effort.",
+    saisons:{printemps:'Mise bas en mai-juin. Les femelles deviennent très défensives.',ete:'Fréquente les zones humides pour se nourrir et échapper aux insectes.',automne:'Rut en septembre-octobre. Les mâles deviennent imprévisibles.',hiver:'Se rabat sur les jeunes pousses de saule et bouleau. Perd ses bois.'},
     alim:'Saule, bouleau, plantes aquatiques. 20–30 kg/jour.',
     hab:'Zones humides, lisières. Territoire 10–30 km². Solitaire.',
     dng:'Femelle avec veau dangereuse. Mâle imprévisible en rut (sept–oct).' },
   { id:'cerf', n:'Cerf élaphe', lat:'Cervus elaphus', e:'🦌', cat:'mammiferes', sub:'Cervidés', r:'peu_commun', sz:'l',
     obs:{ Ferdinand:['cam'], Pierre:['eye'] }, bonus:{},
-    inds:[{n:'Biche 1',note:"Femelle adulte, pelage roux d'été",d:'Juin 2026',b:[]}],
+    inds:[{n:'Biche 1',note:"Femelle adulte, pelage roux d'été",d:'Juin 2026',b:[],
+       gps:[57.3142,25.2769], by:'Pierre', method:'eye', weather:'Aube brumeuse, 8 °C', time:'05h50',
+       story:"Rencontre à l'aube en lisière est. Elle m'a repéré avant que je la voie — figée, oreilles pivotantes. On s'est observés une trentaine de secondes avant qu'elle décide que ça suffisait.",
+       desc:'Femelle adulte, pelage roux vif estival, pas de tache de gestation visible.'}],
+    anecdote:"Le brame du cerf porte à plus de 5 km par nuit calme. Les bois repoussent chaque année à raison de 2 cm par jour — c'est le tissu à croissance la plus rapide du règne animal.",
+    saisons:{printemps:'Chute des bois puis repousse sous velours. Naissance des faons en mai-juin.',ete:'Pelage roux vif. Vie en hardes séparées mâles/femelles.',automne:'Le brame. Les mâles rassemblent leurs harems et combattent.',hiver:'Pelage gris épais. Regroupements pour économiser l\'énergie.'},
     alim:'Herbes, baies, glands, champignons, écorce.',
     hab:'Forêt et lisières. Sociable en hardes.', dng:'Aucun danger hors rut.' },
   { id:'chevreuil', n:'Chevreuil', lat:'Capreolus capreolus', e:'🦌', cat:'mammiferes', sub:'Cervidés', r:'commun', sz:'s',
     obs:{ Ferdinand:['cam','eye'], Pierre:['eye'], Noan:['cam'] }, bonus:{},
-    inds:[{n:'Velours',note:'Mâle, bois en velours',d:'Juin 2026',b:['jeune_bois']},{n:'Chevrette 1',note:'Probable allaitante',d:'Juin 2026',b:['bebe']}],
+    inds:[
+      {n:'Velours',note:'Mâle, bois en velours',d:'Juin 2026',b:['jeune_bois'],
+       gps:[57.3122,25.2733], by:'Ferdinand', method:'cam', weather:'Journée douce, 17 °C', time:'19h12',
+       story:"À trois mètres de la caméra, il broute sans se douter de rien. Les bois encore en velours, tout duveteux. Il est resté sept minutes.",
+       desc:'Brocard adulte, bois en velours de 18-20 cm, trois pointes par merrain.'},
+      {n:'Chevrette 1',note:'Probable allaitante',d:'Juin 2026',b:['bebe'],
+       gps:[57.3119,25.2728], by:'Pierre', method:'eye', weather:'Soir dégagé, 15 °C', time:'20h40',
+       story:"Croisée dans la clairière sud. Mamelles visibles — un faon devait être couché tout près. Je n'ai pas insisté.",
+       desc:'Chevrette adulte, mamelles développées indiquant une lactation en cours.'}],
+    anecdote:"Le chevreuil est le seul ongulé à pratiquer la diapause embryonnaire : fécondé en juillet, l'embryon ne s'implante qu'en décembre. L'aboiement qu'on entend en forêt, c'est lui — un cri d'alarme sec qui prévient tout le voisinage.",
+    saisons:{printemps:'Naissance des faons en mai. Bois débarrassés du velours.',ete:'Rut en juillet-août. Poursuites en cercles caractéristiques.',automne:'Pelage gris-brun. Constitution des réserves.',hiver:'Regroupement en petites hardes. Chute des bois en octobre-novembre.'},
     alim:'Pousses, baies, champignons, lierre. Sélectif.',
     hab:'Lisières et clairières. Territoire 30–60 ha.', dng:'Aucun.' },
   { id:'sanglier', n:'Sanglier', lat:'Sus scrofa', e:'🐗', cat:'mammiferes', sub:'Autres', r:'commun', sz:'l',
@@ -80,7 +100,25 @@ export const SPECIES = [
     dng:'Laie avec marcassins agressive. Peut charger.' },
   { id:'renard', n:'Renard roux', lat:'Vulpes vulpes', e:'🦊', cat:'mammiferes', sub:'Canidés', r:'commun', sz:'s',
     obs:{ Ferdinand:['cam','eye'], Pierre:['cam'], Vera:['eye'] }, bonus:{ Ferdinand:['terrier','bebe'] },
-    inds:[{n:'Roux 1',note:'Adulte sain',d:'Avril 2026',b:[]},{n:'Galeux',note:'⚠️ Gale sarcoptique',d:'Juin 2026',b:[]},{n:'Renardeau A',note:'Jeune',d:'Juin 2026',b:['bebe']},{n:'Renardeau B',note:'Jeune',d:'Juin 2026',b:['bebe']}],
+    inds:[
+      {n:'Roux 1',note:'Adulte sain, actif le matin',d:'Avril 2026',b:[],
+       gps:[57.3135,25.2755], by:'Ferdinand', method:'eye', weather:'Matin frais, 6 °C', time:'07h15',
+       story:"Le classique : il trottine le long de la lisière, s'arrête, écoute, plonge le museau dans l'herbe. Un mulot de moins.",
+       desc:'Adulte en bon état, pelage dense et brillant, queue fournie à extrémité blanche.'},
+      {n:'Galeux',note:'⚠️ Gale sarcoptique avancée',d:'Juin 2026',b:[],
+       gps:[57.3138,25.2761], by:'Ferdinand', method:'cam', weather:'Couvert, 13 °C', time:'11h05',
+       story:"Difficile à regarder. Les flancs dégarnis, le poil terne, la démarche lente. Sans traitement, il ne passera pas l'automne. J'ai contacté un centre de soins.",
+       desc:'Adulte atteint de gale sarcoptique : zones dégarnies importantes sur flancs et dos, croûtes visibles.'},
+      {n:'Renardeau A',note:'Jeune de l\'année',d:'Juin 2026',b:['bebe'],
+       gps:[57.3140,25.2758], by:'Ferdinand', method:'cam', weather:'Fin de journée, 16 °C', time:'18h30',
+       story:"Deux renardeaux qui se poursuivent devant la caméra, complètement insouciants. Le terrier ne doit pas être loin.",
+       desc:'Jeune de l\'année, environ 3 mois, pelage encore laineux.'},
+      {n:'Renardeau B',note:'Jeune de l\'année',d:'Juin 2026',b:['bebe'],
+       gps:[57.3140,25.2758], by:'Ferdinand', method:'cam', weather:'Fin de journée, 16 °C', time:'18h30',
+       story:"Le frère ou la sœur du premier. Un peu plus petit, un peu plus prudent.",
+       desc:'Jeune de l\'année, légèrement plus petit que son congénère.'}],
+    anecdote:"Le renard utilise le champ magnétique terrestre pour chasser : il oriente son bond nord-est et réussit 73 % de ses attaques dans cet axe, contre 18 % dans les autres directions. Il possède plus de 20 vocalisations différentes.",
+    saisons:{printemps:'Naissance des renardeaux en avril. Les adultes chassent en permanence.',ete:'Émancipation progressive des jeunes. Régime riche en fruits et insectes.',automne:'Dispersion des jeunes. Constitution des réserves de graisse.',hiver:'Rut en janvier-février. Cris nocturnes caractéristiques.'},
     alim:'Rongeurs, lapins, oeufs, fruits, insectes.',
     hab:'Lisières, bocage. Terrier actif sur la propriété.',
     dng:'⚠️ Un individu porteur de gale — contagieux pour le chien.' },
@@ -97,7 +135,17 @@ export const SPECIES = [
     dng:'⚠️ Vecteur de rage. Danger pour la basse-cour.' },
   { id:'lynx', n:'Lynx boréal', lat:'Lynx lynx', e:'🐆', cat:'mammiferes', sub:'Félidés', r:'tres_rare', sz:'m',
     obs:{ Ferdinand:['cam'] }, bonus:{ Ferdinand:['terrier'] },
-    inds:[{n:'Loki',note:'Adulte mâle, roux tacheté',d:'07/06/2026',b:['adulte']},{n:'Inconnu',note:'À identifier',d:'07/06/2026',b:[]}],
+    inds:[
+      {n:'Loki',note:'Adulte mâle, roux tacheté',d:'07/06/2026',b:['adulte'],
+       gps:[57.3128,25.2741], by:'Ferdinand', method:'cam', weather:'Ciel dégagé, 10 °C', time:'08h38',
+       story:"Première capture du lynx sur la propriété. Il traverse le corridor nord d'un pas tranquille, sans un regard pour la caméra. Un moment suspendu — on a mis trois jours à y croire.",
+       desc:'Adulte en pleine santé, pelage roux vif densément tacheté, pinceaux auriculaires bien marqués. Estimation : 4-6 ans.'},
+      {n:'Inconnu',note:'Second individu, à identifier',d:'07/06/2026',b:[],
+       gps:[57.3131,25.2748], by:'Ferdinand', method:'cam', weather:'Ciel dégagé, 10 °C', time:'08h39',
+       story:"Une seconde silhouette passe une minute après Loki. Trop floue pour trancher — peut-être une femelle suivie, peut-être le même animal revenu sur ses pas.",
+       desc:'Non identifiable formellement. Taille comparable au premier individu.'}],
+    anecdote:"Le lynx ne rugit pas : il miaule, ronronne et pousse des cris rauques. En Lettonie, la population est passée de moins de 100 individus dans les années 1950 à environ 1 200 aujourd'hui. Il peut bondir sur 7 mètres d'un seul élan.",
+    saisons:{printemps:'Mise bas en mai. La femelle reste cantonnée près de la tanière.',ete:'Élevage des jeunes. Chasse plus fréquente pour nourrir la portée.',automne:'Les jeunes accompagnent la mère. Territoire parcouru intensément.',hiver:'Rut en février-mars. Traces bien visibles dans la neige.'},
     alim:'Chevreuil (70–80%), cerf, lièvre. Affût et bond.',
     hab:'Forêt dense. Territoire 200–500 km². Solitaire.',
     dng:'Aucun pour l\'humain. Très craintif.' },
@@ -288,21 +336,39 @@ export const SPECIES = [
 ]
 
 export const ACHIEVEMENTS = [
-  { e:'🏆', n:'Grand prédateur',    d:'Observer le lynx',             w:'Ferdinand', on:true },
-  { e:'🌙', n:'Chasseur nocturne',  d:'3 espèces nocturnes en 1 nuit',w:'Ferdinand', on:true },
-  { e:'🦊', n:'Famille renard',     d:'Observer des renardeaux',      w:'Ferdinand', on:true },
-  { e:'🏠', n:'Détective terrier',  d:'Trouver un gîte ou terrier',   w:'Ferdinand', on:true },
-  { e:'👶', n:'Nurserie',           d:'Observer des jeunes',          w:'Ferdinand, Pierre', on:true },
-  { e:'❄️', n:'Trace de loup',      d:'Première observation de loup', w:'—', on:false },
-  { e:'🐻', n:'Ours observé',       d:'Observer un ours brun',        w:'—', on:false },
-  { e:'🦌', n:'Brame du cerf',      d:'Entendre le brame (sept–oct)', w:'—', on:false },
-  { e:'🦫', n:'Barrage castor',     d:'Trouver un barrage',           w:'—', on:false },
-  { e:'🌊', n:'Loutre aperçue',     d:'Observer une loutre',          w:'—', on:false },
-  { e:'🍄', n:'Mycologue',          d:'10 champignons identifiés',    w:'—', on:false },
-  { e:'🌳', n:'Dendrologue',        d:'Tous les arbres',              w:'—', on:false },
-  { e:'🦋', n:'Entomologiste',      d:'6 insectes différents',        w:'—', on:false },
-  { e:'🦅', n:'Ornithologue',       d:'Tous les oiseaux',             w:'—', on:false },
+  { e:'🏆', n:'Grand prédateur',    d:'Observer le lynx',                w:'Ferdinand', on:true,  pts:150 },
+  { e:'🌙', n:'Chasseur nocturne',  d:'3 espèces nocturnes en une nuit', w:'Ferdinand', on:true,  pts:80 },
+  { e:'🦊', n:'Famille renard',     d:'Observer des renardeaux',         w:'Ferdinand', on:true,  pts:60 },
+  { e:'🏠', n:'Détective terrier',  d:'Trouver un gîte ou terrier',      w:'Ferdinand', on:true,  pts:70 },
+  { e:'👶', n:'Nurserie',           d:'Observer des jeunes de l\'année', w:'Ferdinand, Pierre', on:true, pts:50 },
+  { e:'❄️', n:'Trace de loup',      d:'Première observation de loup',    w:'—', on:false, pts:200 },
+  { e:'🐻', n:'Ours observé',       d:'Observer un ours brun',           w:'—', on:false, pts:300 },
+  { e:'🦌', n:'Brame du cerf',      d:'Entendre le brame (sept–oct)',    w:'—', on:false, pts:60 },
+  { e:'🦫', n:'Barrage castor',     d:'Trouver un barrage sur la Līčupe',w:'—', on:false, pts:90 },
+  { e:'🌊', n:'Loutre aperçue',     d:'Observer une loutre',             w:'—', on:false, pts:180 },
+  { e:'🍄', n:'Mycologue',          d:'10 champignons identifiés',       w:'—', on:false, pts:100 },
+  { e:'🌳', n:'Dendrologue',        d:'Tous les arbres de la propriété', w:'—', on:false, pts:120 },
+  { e:'🦋', n:'Entomologiste',      d:'6 insectes différents',           w:'—', on:false, pts:80 },
+  { e:'🦅', n:'Ornithologue',       d:'Tous les oiseaux',                w:'—', on:false, pts:140 },
+  { e:'🌅', n:'Lève-tôt',           d:'Une observation avant 6h du matin',w:'—', on:false, pts:40 },
+  { e:'🥶', n:'Hivernal',           d:'Observer par moins de −15°C',     w:'—', on:false, pts:70 },
+  { e:'👁️', n:'Œil de lynx',        d:'10 espèces vues à l\'œil nu',     w:'—', on:false, pts:110 },
+  { e:'🌧️', n:'Sous la pluie',      d:'Une sortie complète sous la pluie',w:'—', on:false, pts:35 },
+  { e:'🏞️', n:'Le grand chelem',    d:'Une espèce de chaque règne',      w:'—', on:false, pts:160 },
+  { e:'📸', n:'Photographe',        d:'20 photos nettes validées',       w:'—', on:false, pts:90 },
+  { e:'🥚', n:'Découvreur de nid',  d:'Trouver un nid occupé',           w:'—', on:false, pts:75 },
+  { e:'🐾', n:'Pisteur',            d:'Identifier 5 empreintes au sol',  w:'—', on:false, pts:65 },
+  { e:'🌒', n:'Pleine lune',        d:'Observer une nuit de pleine lune',w:'—', on:false, pts:45 },
+  { e:'🔭', n:'Longue portée',      d:'Observation à plus de 300 m',     w:'—', on:false, pts:55 },
+  { e:'🦡', n:'Le clan',            d:'Voir 3 blaireaux ensemble',       w:'—', on:false, pts:85 },
+  { e:'🌿', n:'Complétiste',        d:'50 espèces observées',            w:'—', on:false, pts:250 },
 ]
+
+// points de badges par joueur
+export function badgePts(playerName) {
+  return ACHIEVEMENTS.filter(a => a.on && a.w.includes(playerName))
+    .reduce((s, a) => s + (a.pts || 0), 0)
+}
 
 export function calcPts(sp, playerName) {
   const methods = sp.obs[playerName] || []
@@ -315,8 +381,11 @@ export function calcPts(sp, playerName) {
     (bonuses.includes('terrier') ? 30 : 0)
   )
 }
-export function totalPts(playerName) {
+export function speciesPts(playerName) {
   return SPECIES.reduce((sum, sp) => sum + calcPts(sp, playerName), 0)
+}
+export function totalPts(playerName) {
+  return speciesPts(playerName) + badgePts(playerName)
 }
 export function isObserved(sp) {
   return Object.values(sp.obs).some(v => v && v.length)
