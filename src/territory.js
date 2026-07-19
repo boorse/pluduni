@@ -72,21 +72,23 @@ export const EVENTS = [
 
 // ── Points d'intérêt du territoire ──
 // x,y = pourcentage sur la carte schématique
+export const CENTER = { lat:57.286361, lon:25.593917 }
+
 export const POIS = [
-  { id:'cam1',   x:52, y:31, t:'cam',    l:'Caméra Zeiss — corridor nord', d:'14 espèces documentées. Le spot le plus riche.' },
-  { id:'terrier',x:64, y:44, t:'terrier',l:'Terrier de renard',            d:'Actif — renardeaux observés en juin 2026.' },
-  { id:'blair',  x:38, y:52, t:'terrier',l:'Blairaudière probable',        d:'À confirmer. Poser une caméra.' },
-  { id:'affut',  x:47, y:38, t:'projet', l:'Affût semi-enterré (projet)',  d:'Emplacement pressenti, à 40 m du corridor.' },
-  { id:'lac1',   x:24, y:26, t:'eau',    l:'Grand lac',                    d:'Élan et castor probables sur les berges.' },
-  { id:'lac2',   x:31, y:63, t:'eau',    l:'Petit lac',                    d:'Baignade. Libellules en juin.' },
-  { id:'riv',    x:70, y:66, t:'eau',    l:'Coude de la Līčupe',           d:'Projet de plateforme sur pilotis.' },
-  { id:'champ',  x:16, y:44, t:'cueil',  l:'Coin à cèpes',                 d:'Sous les vieux épicéas, après la pluie.' },
-  { id:'myrt',   x:80, y:24, t:'cueil',  l:'Myrtilles',                    d:'Pinède sèche. Pic mi-juillet.' },
-  { id:'argo',   x:58, y:74, t:'agri',   l:'Plantation d\u2019argousier',   d:'~3 ha. Récolte août-septembre.' },
-  { id:'verger', gps:[57.30760,25.27300], x:44, y:82, t:'agri',   l:'Verger & potager',             d:'Pommiers, légumes, ruches à venir.' },
-  { id:'maison', gps:[57.30700,25.27450], x:50, y:88, t:'bati',   l:'Maisons',                      d:'Maison principale et dépendances.' },
-  { id:'ciel',   x:26, y:80, t:'ciel',   l:'Spot d\u2019observation du ciel',d:'Prairie dégagée, aucune lumière parasite.' },
-  { id:'grotte', gps:[57.31250,25.28600], x:86, y:52, t:'explo',  l:'Cavité à explorer',            d:'Repérée mais jamais visitée.' },
+  { id:'cam1',    gps:[57.28720,25.59460], t:'cam',     l:'Caméra Zeiss — corridor nord', d:'14 espèces documentées. Le spot le plus riche.' },
+  { id:'terrier', gps:[57.28810,25.59610], t:'terrier', l:'Terrier de renard',            d:'Actif — renardeaux observés en juin 2026.' },
+  { id:'blair',   gps:[57.28560,25.59180], t:'terrier', l:'Blairaudière probable',        d:'À confirmer. Poser une caméra.' },
+  { id:'affut',   gps:[57.28770,25.59380], t:'projet',  l:'Affût semi-enterré (projet)',  d:'Emplacement pressenti, à 40 m du corridor.' },
+  { id:'lac1',    gps:[57.28960,25.58900], t:'eau',     l:'Grand lac',                    d:'Élan et castor probables sur les berges.' },
+  { id:'lac2',    gps:[57.28420,25.59250], t:'eau',     l:'Petit lac',                    d:'Baignade. Libellules en juin.' },
+  { id:'riv',     gps:[57.28380,25.60180], t:'eau',     l:'Coude de la Līčupe',           d:'Projet de plateforme sur pilotis.' },
+  { id:'champ',   gps:[57.28870,25.58620], t:'cueil',   l:'Coin à cèpes',                 d:'Sous les vieux épicéas, après la pluie.' },
+  { id:'myrt',    gps:[57.29020,25.60350], t:'cueil',   l:'Myrtilles',                    d:'Pinède sèche. Pic mi-juillet.' },
+  { id:'argo',    gps:[57.28280,25.59760], t:'agri',    l:'Plantation d\u2019argousier',   d:'~3 ha. Récolte août-septembre.' },
+  { id:'verger',  gps:[57.28160,25.59420], t:'agri',    l:'Verger & potager',             d:'Pommiers, légumes, ruches à venir.' },
+  { id:'maison',  gps:[57.28100,25.59530], t:'bati',    l:'Maisons',                      d:'Maison principale et dépendances.' },
+  { id:'ciel',    gps:[57.28210,25.58980], t:'ciel',    l:'Spot d\u2019observation du ciel',d:'Prairie dégagée, aucune lumière parasite.' },
+  { id:'grotte',  gps:[57.28680,25.60620], t:'explo',   l:'Cavité à explorer',            d:'Repérée mais jamais visitée.' },
 ]
 
 export const POI_TYPES = {

@@ -14,6 +14,8 @@ export const RU = {
   cepe:'Белый гриб', bolet_orange:'Подосиновик', girolle:'Лисичка',
   amanite:'Мухомор красный', russule:'Сыроежка', coprin:'Навозник белый',
   cladonie:'Ягель', usnee:'Уснея', sphaigne:'Сфагнум', polytric:'Кукушкин лён',
+  h_ferdinand:'Фердинанд', h_pierre:'Пьер', h_elena:'Елена', h_elena2:'Елена (2)',
+  h_dasha:'Даша', h_yanis:'Янис', h_igor:'Игорь', h_natacha:'Наташа', h_natacha2:'Наташа (2)',
   machaon:'Махаон', petit_paon:'Павлиний глаз', lucane:'Жук-олень',
   carabe:'Жужелица', libellule:'Стрекоза', bourdon:'Шмель',
 }

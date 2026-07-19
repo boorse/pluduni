@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { SPECIES, CATS, PLAYERS, RARITY, METHODS, SIZE_MULT, ACHIEVEMENTS, calcPts, totalPts, speciesPts, badgePts, isObserved } from './data'
+import { SPECIES, CATS, PLAYERS, ALL_PLAYERS, DEMO, RARITY, METHODS, SIZE_MULT, ACHIEVEMENTS, calcPts, totalPts, speciesPts, badgePts, isObserved } from './data'
 import MindMap from './mindmap.jsx'
 import { gradientFor, gradientForCat } from './gradients.js'
 import { UI, nameOf, catNameOf } from './i18n.js'
 import { Calendar, Territory, Gallery, ByPerson } from './screens.jsx'
 import { PhotoManager, PhotoBg, PhotoButton, usePhotos } from './photoui.jsx'
 import { LUT } from './photos.js'
+import { splitInds, promote, demote, getOverride } from './individuals.js'
 
 const T = {
   bg:'#EDE7D8', surface:'#E3DAC5', card:'#E6DDC8',
@@ -133,6 +134,8 @@ export default function App() {
   const [curInd, setCurInd] = useState(null)      // individu ouvert
   const [curPlayer, setCurPlayer] = useState(null) // detail score
   const [photoTarget, setPhotoTarget] = useState(null) // {target,label}
+  const [promoting, setPromoting] = useState(null)   // {sp, ind}
+  const [refresh, setRefresh] = useState(0)
 
   const sp = SPECIES.find(s => s.id === curSp)
   const catObj = CATS.find(c => c.id === curCat)
@@ -151,7 +154,7 @@ export default function App() {
     </>
   )
   if (screen === 'calendar')  return <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}><Calendar wide={wide} lang={lang} onBack={()=>setScreen('landing')} /></Shell>
-  if (screen === 'territory') return <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}><Territory wide={wide} lang={lang} onBack={()=>setScreen('landing')} /></Shell>
+  if (screen === 'territory') return <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}><Territory wide={wide} lang={lang} edit={edit} onBack={()=>setScreen('landing')} /></Shell>
   if (screen === 'gallery')   return (
     <Shell lang={lang} setLang={setLang} onHome={()=>setScreen('landing')}>
       <Gallery wide={wide} lang={lang} onBack={()=>setScreen('landing')} />
@@ -167,7 +170,7 @@ export default function App() {
 
   // vue large : une colonne complète par personne
   const MatrixWide = ({ focusPerson, setFocusPerson }) => {
-    const cols = focusPerson ? PLAYERS.filter(p=>p.name===focusPerson) : PLAYERS
+    const cols = focusPerson ? ALL_PLAYERS.filter(p=>p.name===focusPerson) : ALL_PLAYERS
     return (
       <div style={{ padding:'14px 18px' }}>
         <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:14, alignItems:'center' }}>
@@ -175,7 +178,7 @@ export default function App() {
           <button onClick={()=>setFocusPerson(null)} style={{ fontSize:11.5, padding:'5px 11px', borderRadius:14,
             border:`1px solid ${!focusPerson?T.clay:T.line}`, background:!focusPerson?T.clay:'transparent',
             color:!focusPerson?'#fff':T.soft, fontWeight:!focusPerson?600:400 }}>{t.all}</button>
-          {PLAYERS.map(p=>{
+          {ALL_PLAYERS.map(p=>{
             const on = focusPerson===p.name
             return <button key={p.id} onClick={()=>setFocusPerson(on?null:p.name)} style={{ fontSize:11.5, padding:'5px 11px',
               borderRadius:14, border:`1px solid ${on?T.clay:T.line}`, background:on?T.clay:'transparent',
@@ -195,16 +198,17 @@ export default function App() {
                 <thead><tr>
                   <th style={{ textAlign:'left', padding:'7px 8px', color:T.mute, fontWeight:500, fontSize:10.5, borderBottom:`1.5px solid ${T.line}` }}>{lang==='ru'?'Вид':'Espèce'}</th>
                   {cols.map(p=>(
-                    <th key={p.id} style={{ padding:'7px 8px', textAlign:'center', borderBottom:`1.5px solid ${T.line}`, minWidth:110 }}>
+                    <th key={p.id} style={{ padding:'7px 8px', textAlign:'center', borderBottom:`1.5px solid ${T.line}`,
+                      borderLeft:`1px solid ${T.lineSoft}`, minWidth:110, background:p.demo?'rgba(211,199,174,.18)':'transparent' }}>
                       <div className="serif" style={{ fontSize:13, fontWeight:700, color:T.ink }}>{p.name}</div>
                     </th>
                   ))}
                 </tr></thead>
                 <tbody>
-                  {list.map(s=>{
+                  {list.map((s,si)=>{
                     const r = RARITY[s.r], o = isObserved(s), nm = nameOf(s, lang)
                     return (
-                      <tr key={s.id} style={{ opacity:o?1:.5 }}>
+                      <tr key={s.id} style={{ opacity:o?1:.5, background: si%2 ? 'rgba(211,199,174,.16)' : 'transparent' }}>
                         <td onClick={()=>selSpFull(s.id)} style={{ padding:'7px 8px', borderBottom:`1px solid ${T.lineSoft}`, cursor:'pointer' }}>
                           <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                             <span style={{ width:9, height:9, borderRadius:2, background:o?r.c:'#CFC3A8', flexShrink:0 }} />
@@ -215,30 +219,30 @@ export default function App() {
                             </span>
                           </div>
                         </td>
-                        {cols.map(pl=>{
+                        {cols.map((pl,ci)=>{
                           const m = s.obs[pl.name]||[]
                           const best = m.length ? m.reduce((b,x)=>(METHODS[x]?.mult||0)>(METHODS[b]?.mult||0)?x:b, m[0]) : null
-                          const myInd = (s.inds||[]).filter(i=>i.by===pl.name)
+                          const resolved = splitInds(s)
+                          const mine = [...resolved.named, ...resolved.sightings].filter(i=>i.by===pl.name)
                           return (
-                            <td key={pl.id} style={{ padding:'6px 8px', borderBottom:`1px solid ${T.lineSoft}`, textAlign:'center' }}>
+                            <td key={pl.id} onClick={()=>selSpFull(s.id)} style={{ padding:'6px 8px',
+                              borderBottom:`1px solid ${T.lineSoft}`, borderLeft:`1px solid ${T.lineSoft}`,
+                              textAlign:'center', cursor:'pointer' }}>
                               {best ? (
-                                <div style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-                                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, background:METHODS[best].c,
-                                    color:METHODS[best].on, borderRadius:9, padding:'4px 9px', fontSize:11, fontWeight:600 }}>
-                                    {best==='eye'?'👁':best==='scope'?'🔭':best==='night'?'🌙':'📷'}
-                                    {METHODS[best].l.split(' ')[0]}
+                                mine.length>0 ? (
+                                  <span style={{ display:'flex', gap:3, flexWrap:'wrap', justifyContent:'center' }}>
+                                    {mine.map((ind,i)=>(
+                                      <span key={i} style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                                        <ObsCell spId={s.id} indName={ind.n} method={best} named={ind.named}
+                                          label={`${ind.displayName} — ${METHODS[best].l}`} />
+                                        <span style={{ fontSize:7.5, color: ind.named?'#A07C28':T.mute,
+                                          fontWeight: ind.named?700:400, maxWidth:44, overflow:'hidden',
+                                          textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ind.displayName}</span>
+                                      </span>
+                                    ))}
                                   </span>
-                                  {myInd.length>0 && (
-                                    <span style={{ display:'flex', gap:2, flexWrap:'wrap', justifyContent:'center' }}>
-                                      {myInd.map((ind,i)=>(
-                                        <span key={i} title={ind.n} onClick={(e)=>{e.stopPropagation(); selSpFull(s.id)}}
-                                          style={{ fontSize:9, background:'#8F4A22', color:'#fff', borderRadius:7,
-                                            padding:'1px 6px', fontWeight:600, cursor:'pointer' }}>{ind.n}</span>
-                                      ))}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : <span style={{ color:T.line, fontSize:14 }}>·</span>}
+                                ) : <SpeciesCell spId={s.id} method={best} label={`${pl.name} — ${METHODS[best].l}`} />
+                              ) : <span style={{ color:T.line, fontSize:13 }}>·</span>}
                             </td>
                           )
                         })}
@@ -256,9 +260,10 @@ export default function App() {
               <span style={{ width:17, height:17, borderRadius:'50%', background:m.c, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9 }}>{k==='eye'?'👁':k==='scope'?'🔭':k==='night'?'🌙':'📷'}</span>{m.l} ×{m.mult}
             </span>
           ))}
-          <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-            <span style={{ fontSize:9, background:'#8F4A22', color:'#fff', borderRadius:7, padding:'1px 6px', fontWeight:600 }}>Loki</span>
-            {lang==='ru'?'названная особь':'individu nommé'}
+          <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+            <span style={{ width:24, height:19, borderRadius:5, border:'1.5px solid #C9A046',
+              background:'#DDD3BE', display:'inline-block' }} />
+            {lang==='ru'?'знакомый':'familier'}
           </span>
         </div>
       </div>
@@ -280,7 +285,7 @@ export default function App() {
               <thead><tr>
                 <th style={{ textAlign:'left', padding:'5px 6px', color:T.mute, fontWeight:500, fontSize:10, borderBottom:`1px solid ${T.line}` }}>{lang==='ru'?'Вид':'Espèce'}</th>
                 <th style={{ padding:'5px 3px', textAlign:'center', color:T.mute, fontWeight:500, fontSize:10, borderBottom:`1px solid ${T.line}`, width:30 }} title="Individus identifiés">👤</th>
-                {PLAYERS.map(p=><th key={p.id} title={p.name} style={{ padding:'5px 3px', textAlign:'center', color:T.soft, fontWeight:600, fontSize:10, borderBottom:`1px solid ${T.line}`, width:38 }}>{p.id}</th>)}
+                {ALL_PLAYERS.map(p=><th key={p.id} title={p.name} style={{ padding:'5px 3px', textAlign:'center', color:T.soft, fontWeight:600, fontSize:10, borderBottom:`1px solid ${T.line}`, width:38 }}>{p.id}</th>)}
               </tr></thead>
               <tbody>
                 {list.map(s=>{
@@ -398,13 +403,13 @@ export default function App() {
 
             {detTab==='obs' && <>
               <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>{t.whoObserved}</div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
-                {PLAYERS.map(pl=>{
+              <div style={{ display:'grid', gridTemplateColumns:`repeat(${wide?5:3},1fr)`, gap:8, marginBottom:16 }}>
+                {ALL_PLAYERS.map(pl=>{
                   const m = sp.obs[pl.name]||[]
                   const best = m.length ? m.reduce((b,x)=>(METHODS[x]?.mult||0)>(METHODS[b]?.mult||0)?x:b, m[0]) : null
                   const p2 = calcPts(sp, pl.name)
                   return (
-                    <div key={pl.id} style={{ background:best?`${METHODS[best].c}33`:T.card, border:`1px solid ${best?METHODS[best].c:T.line}`, borderRadius:10, padding:'9px 6px', textAlign:'center' }}>
+                    <div key={pl.id} style={{ background:best?`${METHODS[best].c}33`:T.card, border:`1px solid ${best?METHODS[best].c:T.line}`, borderRadius:10, padding:'9px 6px', textAlign:'center', opacity:pl.demo?.7:1 }}>
                       <div style={{ fontSize:15, marginBottom:2 }}>{best?(best==='eye'?'👁':best==='scope'?'🔭':best==='night'?'🌙':'📷'):'—'}</div>
                       <div style={{ fontSize:10, color:T.soft }}>{pl.name}</div>
                       <div className="serif" style={{ fontSize:12, fontWeight:600, color:T.ink }}>{p2?p2+' pts':'—'}</div>
@@ -412,27 +417,63 @@ export default function App() {
                   )
                 })}
               </div>
-              {sp.inds.length>0 && <>
-                <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:8 }}>{t.individuals} ({sp.inds.length})</div>
-                <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill,minmax(${wide?128:110}px,1fr))`, gap:9 }}>
-                  {sp.inds.map((ind,i)=>(
-                    <button key={i} onClick={()=>setCurInd(ind)} style={{ textAlign:'left', borderRadius:12, overflow:'hidden', border:`1px solid ${T.line}`, padding:0, position:'relative', minHeight:92 }}>
-                      <PhotoBg target={`ind:${sp.id}:${ind.n}`} fallback={gradientFor(sp.id+ind.n)} />
-                      <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(16,18,12,.72), transparent 58%)' }} />
-                      {edit && <div style={{ position:'absolute', top:6, right:6 }}>
-                        <PhotoButton small onClick={()=>setPhotoTarget({ target:`ind:${sp.id}:${ind.n}`, label:`${sp.n} — ${ind.n}` })} />
-                      </div>}
-                      <div style={{ position:'relative', height:'100%', minHeight:92, display:'flex', flexDirection:'column', justifyContent:'space-between', padding:9 }}>
-                        <span style={{ fontSize:20 }}>{sp.e}</span>
-                        <div>
-                          <div className="serif" style={{ fontSize:12.5, fontWeight:700, color:'#F2EEE2', lineHeight:1.1 }}>{ind.n}</div>
-                          <div style={{ fontSize:9.5, color:'rgba(242,238,226,.75)', marginTop:2 }}>{ind.d}</div>
+              {sp.inds.length>0 && (() => {
+                const { named, sightings } = splitInds(sp)
+                const Col = ({ title, icon, list, isNamed }) => (
+                  <div>
+                    <div style={{ fontSize:10.5, fontWeight:700, color: isNamed?'#A07C28':T.mute, textTransform:'uppercase',
+                      letterSpacing:'.6px', marginBottom:8, display:'flex', alignItems:'center', gap:5,
+                      paddingBottom:5, borderBottom: isNamed?'1.5px solid #C9A046':`1px solid ${T.line}` }}>
+                      <i className={`ti ${icon}`} style={{ fontSize:13 }} aria-hidden="true" />
+                      {title} ({list.length})
+                    </div>
+                    {list.length===0
+                      ? <div style={{ fontSize:11.5, color:T.mute, padding:'8px 0', fontStyle:'italic' }}>
+                          {isNamed ? (lang==='ru'?'Пока никого не опознали':'Aucun individu reconnu pour l\'instant')
+                                   : (lang==='ru'?'Нет наблюдений':'Aucune observation')}
                         </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>}
+                      : <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill,minmax(${wide?118:104}px,1fr))`, gap:8 }}>
+                          {list.map((ind,i)=>(
+                            <button key={i} onClick={()=>setCurInd(ind)} style={{ textAlign:'left', borderRadius:12,
+                              overflow:'hidden', padding:0, position:'relative', minHeight: isNamed?100:92,
+                              border: isNamed?'2px solid #C9A046':`1px solid ${T.line}`,
+                              boxShadow: isNamed?'0 0 0 1px rgba(201,160,70,.28), 0 3px 12px rgba(201,160,70,.22)':'none' }}>
+                              <PhotoBg target={`ind:${sp.id}:${ind.n}`} fallback={gradientFor(sp.id+ind.n)} />
+                              <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(16,18,12,.74), transparent 56%)' }} />
+                              {isNamed && <span style={{ position:'absolute', top:6, left:6, background:'#C9A046',
+                                color:'#2B2620', borderRadius:8, padding:'2px 7px', fontSize:8.5, fontWeight:800,
+                                letterSpacing:'.4px', display:'flex', alignItems:'center', gap:3, zIndex:2 }}>
+                                ★ {lang==='ru'?'ЗНАКОМЫЙ':'FAMILIER'}</span>}
+                              {edit && <div style={{ position:'absolute', top:5, right:5, display:'flex', gap:3 }}>
+                                <PhotoButton small onClick={()=>setPhotoTarget({ target:`ind:${sp.id}:${ind.n}`, label:`${sp.n} — ${ind.displayName}` })} />
+                              </div>}
+                              <div style={{ position:'relative', height:'100%', minHeight:92, display:'flex',
+                                flexDirection:'column', justifyContent:'flex-end', padding:9 }}>
+                                <div className="serif" style={{ fontSize:12, fontWeight:700, color:'#F2EEE2', lineHeight:1.1 }}>{ind.displayName}</div>
+                                <div style={{ fontSize:9.5, color:'rgba(242,238,226,.72)', marginTop:2 }}>{ind.d}</div>
+                              </div>
+                              {edit && !isNamed && (
+                                <span onClick={(e)=>{ e.stopPropagation(); setPromoting({ sp, ind }) }}
+                                  style={{ position:'absolute', bottom:6, right:6, background:'rgba(143,74,34,.92)',
+                                    color:'#fff', borderRadius:9, padding:'2px 7px', fontSize:9, fontWeight:700,
+                                    display:'flex', alignItems:'center', gap:3 }}>
+                                  <i className="ti ti-lock-open" style={{ fontSize:10 }} aria-hidden="true" />
+                                  {lang==='ru'?'Назвать':'Nommer'}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>}
+                  </div>
+                )
+                return (
+                  <div style={{ display:'grid', gridTemplateColumns: wide?'1fr 1fr':'1fr', gap:16 }}>
+                    <Col title={lang==='ru'?'Проходы':'Passages'} icon="ti-eye" list={sightings} isNamed={false} />
+                    <Col title={lang==='ru'?'Знакомые':'Familiers'} icon="ti-star" list={named} isNamed={true} />
+                  </div>
+                )
+              })()}
+
               {Object.entries(sp.bonus||{}).some(([,b])=>b.length) && (
                 <div style={{ marginTop:14 }}>
                   <div style={{ fontSize:10.5, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'.5px', marginBottom:6 }}>Bonus</div>
@@ -503,7 +544,10 @@ export default function App() {
             <div style={{ position:'absolute', top:12, left:14, fontSize:34 }}>{sp.e}</div>
             <div style={{ position:'relative' }}>
               <div style={{ fontSize:10.5, color:'rgba(242,238,226,.7)', textTransform:'uppercase', letterSpacing:'1px' }}>{sp.n}</div>
-              <div className="serif" style={{ fontSize:24, fontWeight:900, color:'#F2EEE2', lineHeight:1.05 }}>{ind.n}</div>
+              <div className="serif" style={{ fontSize:24, fontWeight:900, color:'#F2EEE2', lineHeight:1.05,
+                display:'flex', alignItems:'center', gap:7 }}>
+                {ind.named && <span style={{ fontSize:17 }}>⭐</span>}{ind.displayName || ind.n}
+              </div>
               <div style={{ fontSize:11.5, color:'rgba(242,238,226,.78)', marginTop:3 }}>{ind.note}</div>
             </div>
           </div>
@@ -532,6 +576,25 @@ export default function App() {
                 <div className="serif" style={{ fontSize:13.5, color:T.ink, lineHeight:1.7, fontStyle:'italic' }}>« {ind.story} »</div>
               </div>
             )}
+            {ind.traits && (
+              <div style={{ background:'#F0E4CF', border:'1px solid #DCC79E', borderRadius:12, padding:12, marginBottom:9 }}>
+                <div style={{ fontSize:10.5, fontWeight:700, color:'#8F6A2E', textTransform:'uppercase',
+                  letterSpacing:'.5px', marginBottom:5, display:'flex', alignItems:'center', gap:5 }}>
+                  <i className="ti ti-fingerprint" style={{ fontSize:13 }} aria-hidden="true" />
+                  {lang==='ru'?'Приметы':'Signes distinctifs'}
+                </div>
+                <div style={{ fontSize:12.5, color:'#6B5330', lineHeight:1.6 }}>{ind.traits}</div>
+              </div>
+            )}
+            {edit && !ind.named && (
+              <button onClick={()=>{ setCurInd(null); setPromoting({ sp, ind }) }}
+                style={{ width:'100%', padding:'11px', borderRadius:12, border:'1px dashed #C9A87C',
+                  background:'transparent', color:'#8F4A22', fontSize:12.5, fontWeight:600,
+                  marginBottom:10, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                <i className="ti ti-lock-open" style={{ fontSize:15 }} aria-hidden="true" />
+                {lang==='ru'?'Опознать эту особь и дать имя':'Reconnaître cet individu et lui donner un nom'}
+              </button>
+            )}
             <IndPhotos spId={sp.id} indName={ind.n} />
             {ind.desc && (
               <div style={{ background:T.card, border:`1px solid ${T.line}`, borderRadius:12, padding:13 }}>
@@ -547,7 +610,7 @@ export default function App() {
 
   // ═════ SCORES ═════
   const Scores = () => {
-    const rows = PLAYERS.map(p=>({ ...p, pts:totalPts(p.name), spp:speciesPts(p.name), bp:badgePts(p.name), sps:SPECIES.filter(s=>(s.obs[p.name]||[]).length).length })).sort((a,b)=>b.pts-a.pts)
+    const rows = ALL_PLAYERS.map(p=>({ ...p, pts:totalPts(p.name), spp:speciesPts(p.name), bp:badgePts(p.name), sps:SPECIES.filter(s=>(s.obs[p.name]||[]).length).length })).sort((a,b)=>b.pts-a.pts)
     const max = Math.max(rows[0].pts,1)
     return (
       <div style={{ padding: wide?'18px 40px 40px':'16px 20px 30px' }}>
@@ -555,8 +618,8 @@ export default function App() {
           <div>
             <div className="serif" style={{ fontSize:13, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'1px', marginBottom:12 }}>Classement</div>
             {rows.map((p,i)=>(
-              <button key={p.id} onClick={()=>setCurPlayer(p.name)} style={{ width:'100%', textAlign:'left', background:T.card, border:`1px solid ${T.line}`, borderRadius:12, padding:'11px 13px', display:'flex', alignItems:'center', gap:11, marginBottom:7 }}>
-                <span style={{ fontSize:16, width:24 }}>{['🥇','🥈','🥉','4️⃣'][i]}</span>
+              <button key={p.id} onClick={()=>setCurPlayer(p.name)} style={{ width:'100%', textAlign:'left', background:T.card, border:`1px solid ${p.demo?'#C9BFA6':T.line}`, borderRadius:12, padding:'11px 13px', display:'flex', alignItems:'center', gap:11, marginBottom:7, opacity:p.demo?.68:1 }}>
+                <span style={{ fontSize:16, width:24 }}>{p.demo?'🎓':['🥇','🥈','🥉','4️⃣'][i]}</span>
                 <div className="serif" style={{ width:32, height:32, borderRadius:'50%', background:T.sage, color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:600, flexShrink:0 }}>{p.id}</div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div className="serif" style={{ fontSize:14, fontWeight:600, color:T.ink }}>{p.name}</div>
@@ -680,32 +743,70 @@ export default function App() {
 
   // ═════ BADGES ═════
   const Badges = () => {
-    const on = ACHIEVEMENTS.filter(a=>a.on), off = ACHIEVEMENTS.filter(a=>!a.on)
-    const G = ({ list, locked }) => (
-      <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill,minmax(${wide?150:130}px,1fr))`, gap:10, marginBottom:20 }}>
-        {list.map(a=>(
-          <div key={a.n} style={{ borderRadius:14, overflow:'hidden', position:'relative', minHeight:120, border:`1px solid ${locked?T.line:T.clay}` }}>
-            <div style={{ position:'absolute', inset:0, background: locked?'#DDD3BE':gradientFor(a.n), opacity: locked?1:1 }} />
-            {!locked && <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,0.5), transparent 60%)' }} />}
-            <div style={{ position:'relative', height:'100%', display:'flex', flexDirection:'column', justifyContent:'space-between', padding:12, minHeight:120 }}>
-              <div style={{ fontSize:26, filter: locked?'grayscale(1)':'none', opacity: locked?0.35:1 }}>{a.e}</div>
-              <div>
-                <div className="serif" style={{ fontSize:13, fontWeight:600, color: locked?T.ink:'#F2EEE2' }}>{a.n}</div>
-                <div style={{ fontSize:10, color: locked?T.mute:'rgba(242,238,226,0.8)', marginTop:2, lineHeight:1.35 }}>{a.d}</div>
-                <div style={{ fontSize:10, color: locked?T.mute:T.leaf, marginTop:4, fontWeight:600 }}>{locked?'???':a.w}</div>
-                <div className="serif" style={{ fontSize:12, fontWeight:900, color: locked?T.clay:'#F0D9A8', marginTop:3 }}>+{a.pts} pts</div>
-              </div>
+    const tiers = ACHIEVEMENTS.filter(a=>a.tier).sort((a,b)=>a.tier-b.tier)
+    const rest  = ACHIEVEMENTS.filter(a=>!a.tier)
+    const doneCount = SPECIES.filter(isObserved).length
+    const Card = ({ a }) => {
+      const locked = !a.on
+      return (
+        <div style={{ borderRadius:14, overflow:'hidden', position:'relative', minHeight:124,
+          border: locked?`1px solid ${T.line}`:'2px solid #C9A046',
+          boxShadow: locked?'none':'0 0 0 1px rgba(201,160,70,.25), 0 3px 14px rgba(201,160,70,.2)' }}>
+          <div style={{ position:'absolute', inset:0, background: locked?'#DDD3BE':gradientFor(a.n) }} />
+          {!locked && <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.55), transparent 60%)' }} />}
+          <div style={{ position:'relative', height:'100%', minHeight:124, display:'flex', flexDirection:'column',
+            justifyContent:'space-between', padding:12 }}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+              <span style={{ fontSize:26, filter: locked?'grayscale(1)':'none', opacity: locked?.3:1 }}>{a.e}</span>
+              <span className="serif" style={{ fontSize:13, fontWeight:900,
+                color: locked?T.mute:'#F0D9A8' }}>+{a.pts}</span>
+            </div>
+            <div>
+              <div className="serif" style={{ fontSize:13.5, fontWeight:700, color: locked?T.ink:'#F2EEE2' }}>{a.n}</div>
+              <div style={{ fontSize:10.5, color: locked?T.mute:'rgba(242,238,226,.82)', marginTop:2, lineHeight:1.4 }}>{a.d}</div>
+              {a.tier && locked && (
+                <div style={{ marginTop:6 }}>
+                  <div style={{ height:4, background:'#CFC3A8', borderRadius:3, overflow:'hidden' }}>
+                    <div style={{ height:'100%', background:'#C9A046',
+                      width:`${Math.min(100, Math.round(doneCount / [10,25,50,80,SPECIES.length][a.tier-1] * 100))}%` }} />
+                  </div>
+                  <div style={{ fontSize:9, color:T.mute, marginTop:3 }}>
+                    {doneCount} / {[10,25,50,80,SPECIES.length][a.tier-1]}
+                  </div>
+                </div>
+              )}
+              {!a.tier && locked && <div style={{ fontSize:9.5, color:T.mute, marginTop:4 }}>Non débloqué</div>}
+              {!locked && <div style={{ fontSize:10, color:'#C9DBA4', marginTop:4, fontWeight:600 }}>{a.w}</div>}
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )
+    }
+    const Section = ({ title, list }) => (
+      <>
+        <div className="serif" style={{ fontSize:13, fontWeight:700, color:T.mute, textTransform:'uppercase',
+          letterSpacing:'1px', marginBottom:10 }}>{title}</div>
+        <div style={{ display:'grid', gridTemplateColumns:`repeat(auto-fill,minmax(${wide?185:150}px,1fr))`,
+          gap:10, marginBottom:22 }}>{list.map(a=><Card key={a.n} a={a} />)}</div>
+      </>
     )
     return (
       <div style={{ padding: wide?'18px 40px 40px':'16px 20px 30px' }}>
-        <div className="serif" style={{ fontSize:13, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'1px', marginBottom:10 }}>Débloqués ({on.length})</div>
-        <G list={on} locked={false} />
-        <div className="serif" style={{ fontSize:13, fontWeight:600, color:T.mute, textTransform:'uppercase', letterSpacing:'1px', marginBottom:10 }}>À débloquer ({off.length})</div>
-        <G list={off} locked={true} />
+        <div style={{ background:'#F0E4CF', border:'1px solid #DCC79E', borderRadius:12,
+          padding:'12px 14px', marginBottom:20 }}>
+          <div className="serif" style={{ fontSize:14, fontWeight:700, color:'#8F6A2E', marginBottom:3,
+            display:'flex', alignItems:'center', gap:6 }}>
+            <i className="ti ti-award" style={{ fontSize:16 }} aria-hidden="true" />
+            {lang==='ru'?'Все значки трудные':'Tous les badges sont difficiles'}
+          </div>
+          <div style={{ fontSize:11.5, color:'#6B5330', lineHeight:1.55 }}>
+            {lang==='ru'
+              ? 'От 60 до 900 очков. Ни один не даётся легко — это настоящие цели на годы.'
+              : 'De 60 à 900 points. Aucun ne s\'obtient par hasard — ce sont de vrais objectifs, certains sur plusieurs années.'}
+          </div>
+        </div>
+        <Section title={lang==='ru'?'Этапы каталога':'Paliers du recensement'} list={tiers} />
+        <Section title={lang==='ru'?'Испытания':'Défis de terrain'} list={rest} />
       </div>
     )
   }
@@ -806,6 +907,8 @@ export default function App() {
       {curSp && <Detail />}
       {curInd && <IndividuSheet />}
       {curPlayer && <ScoreSheet />}
+      {promoting && <PromoteSheet sp={promoting.sp} ind={promoting.ind} lang={lang} wide={wide}
+        onClose={()=>setPromoting(null)} onDone={()=>{ setPromoting(null); setRefresh(r=>r+1) }} />}
       {photoTarget && <PhotoManager target={photoTarget.target} label={photoTarget.label} lang={lang} onClose={()=>setPhotoTarget(null)} />}
       {toast && <Toast msg={toast} />}
 
@@ -830,6 +933,61 @@ export default function App() {
 
 
 
+function PromoteSheet({ sp, ind, lang, wide, onClose, onDone }) {
+  const [name, setName] = useState(ind.displayName || ind.n)
+  const [traits, setTraits] = useState(ind.traits || '')
+  const already = !!getOverride(sp.id, ind.n)
+  return (
+    <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.62)', zIndex:130,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:'#EDE7D8', borderRadius:18, padding:22,
+        width:'100%', maxWidth:400, border:'1px solid #D3C7AE' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+          <span style={{ fontSize:20 }}>⭐</span>
+          <div className="serif" style={{ fontSize:18, fontWeight:900, color:'#2B2620' }}>
+            {lang==='ru'?'Опознать особь':'Reconnaître un individu'}
+          </div>
+        </div>
+        <div style={{ fontSize:12, color:'#6B6357', lineHeight:1.55, marginBottom:14 }}>
+          {lang==='ru'
+            ? 'Если вы узнаёте это животное по приметам — дайте ему имя. Оно станет постоянной особью.'
+            : "Si tu reconnais cet animal à des signes distinctifs, donne-lui un nom. Il devient alors un individu récurrent qu\'on pourra suivre dans le temps."}
+        </div>
+        <label style={{ fontSize:11, color:'#9A9081', display:'block', marginBottom:4 }}>
+          {lang==='ru'?'Имя':'Nom'}
+        </label>
+        <input value={name} onChange={e=>setName(e.target.value)} autoFocus
+          style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:'1px solid #D3C7AE',
+            background:'#E6DDC8', fontSize:14, color:'#2B2620', marginBottom:11 }} />
+        <label style={{ fontSize:11, color:'#9A9081', display:'block', marginBottom:4 }}>
+          {lang==='ru'?'Приметы':'Signes distinctifs'}
+        </label>
+        <textarea value={traits} onChange={e=>setTraits(e.target.value)} rows={3}
+          placeholder={lang==='ru'?'Шрам, окрас, размер…':'Cicatrice, tache, taille des bois…'}
+          style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:'1px solid #D3C7AE',
+            background:'#E6DDC8', fontSize:12.5, color:'#2B2620', marginBottom:14, resize:'vertical' }} />
+        <div style={{ display:'flex', gap:8 }}>
+          {already && (
+            <button onClick={()=>{ demote(sp.id, ind.n); onDone() }}
+              style={{ padding:'10px 14px', borderRadius:10, border:'1px solid #D3C7AE', color:'#6B6357', fontSize:12.5 }}>
+              {lang==='ru'?'Убрать':'Retirer'}
+            </button>
+          )}
+          <button onClick={onClose} style={{ flex:1, padding:'10px', borderRadius:10,
+            border:'1px solid #D3C7AE', color:'#6B6357', fontSize:13 }}>
+            {lang==='ru'?'Отмена':'Annuler'}
+          </button>
+          <button onClick={()=>{ if(name.trim()){ promote(sp.id, ind.n, name.trim(), traits.trim()); onDone() } }}
+            className="serif" style={{ flex:1.4, padding:'10px', borderRadius:10, background:'#B5602F',
+              color:'#fff', fontSize:13.5, fontWeight:700 }}>
+            {lang==='ru'?'Опознать':'Reconnaître'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EditBadge({ lang }) {
   const [info, setInfo] = useState({ n:0, mb:'0.0' })
   useEffect(()=>{ let alive=true
@@ -843,6 +1001,40 @@ function EditBadge({ lang }) {
       <i className="ti ti-pencil" style={{ fontSize:12 }} aria-hidden="true" />
       {lang==='ru'?'Правка':'Édition'}
       {info.n>0 && <span style={{ opacity:.75 }}>· {info.n} 📷 {info.mb} Mo</span>}
+    </span>
+  )
+}
+
+function ObsCell({ spId, indName, method, label, named }) {
+  const { photos } = usePhotos(`ind:${spId}:${indName}`)
+  const ph = photos[0]
+  const ico = method==='eye'?'👁':method==='scope'?'🔭':method==='night'?'🌙':'📷'
+  return (
+    <span title={label} style={{ position:'relative', width:38, height:30, borderRadius:6, overflow:'hidden',
+      display:'inline-block', flexShrink:0,
+      border: named?'1.5px solid #C9A046':'1px solid #D3C7AE',
+      boxShadow: named?'0 0 0 1px rgba(201,160,70,.25)':'none',
+      background: ph?'#1E2418':'#DDD3BE' }}>
+      {ph
+        ? <img src={ph.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', filter:LUT, display:'block' }} />
+        : <span style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:11, opacity:.35 }}>{named?'★':''}</span>}
+      <span style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(14,16,10,.72)',
+        color:'#F2EEE2', fontSize:7, lineHeight:'10px', textAlign:'center' }}>{ico}</span>
+    </span>
+  )
+}
+
+function SpeciesCell({ spId, method, label }) {
+  const { photos } = usePhotos(`sp:${spId}`)
+  const ph = photos[0]
+  const ico = method==='eye'?'👁':method==='scope'?'🔭':method==='night'?'🌙':'📷'
+  return (
+    <span title={label} style={{ position:'relative', width:38, height:30, borderRadius:6, overflow:'hidden',
+      display:'inline-block', flexShrink:0, border:'1px solid #D3C7AE', background: ph?'#1E2418':'#DDD3BE' }}>
+      {ph && <img src={ph.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', filter:LUT, display:'block' }} />}
+      <span style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(14,16,10,.72)',
+        color:'#F2EEE2', fontSize:7, lineHeight:'10px', textAlign:'center' }}>{ico}</span>
     </span>
   )
 }
