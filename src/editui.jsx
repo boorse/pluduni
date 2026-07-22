@@ -1,0 +1,425 @@
+import { useState } from 'react'
+import { allPlayers, addPlayer, allCats, addSpecies, editSpecies, setObservation, addSighting, getMe, setMe } from './store.js'
+import { RARITY, METHODS, SIZE_MULT } from './data'
+
+const T = { bg:'#EDE7D8', card:'#E6DDC8', ink:'#2B2620', soft:'#6B6357',
+  mute:'#9A9081', line:'#D3C7AE', clay:'#B5602F', sageDark:'#4A5D32', gold:'#C9A046' }
+
+const Modal = ({ children, onClose, wide, max=460 }) => (
+  <div onClick={onClose} style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.62)', zIndex:150,
+    display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+    <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius:18, width:'100%',
+      maxWidth:max, maxHeight:'88vh', overflow:'auto', border:`1px solid ${T.line}` }}>{children}</div>
+  </div>
+)
+const label = { fontSize:11, color:T.mute, display:'block', marginBottom:4, marginTop:11 }
+const input = { width:'100%', padding:'10px 12px', borderRadius:10, border:`1px solid ${T.line}`,
+  background:T.card, fontSize:13.5, color:T.ink }
+
+// ══════ Choix d'identité ══════
+export function IdentityPicker({ lang, onClose }) {
+  const [me, setLocal] = useState(getMe())
+  const [adding, setAdding] = useState('')
+  const players = allPlayers().filter(p=>!p.demo)
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ padding:22 }}>
+        <div className="serif" style={{ fontSize:19, fontWeight:900, color:T.ink, marginBottom:4 }}>
+          {lang==='ru'?'Кто вы?':'Qui es-tu ?'}
+        </div>
+        <div style={{ fontSize:12.5, color:T.soft, marginBottom:14, lineHeight:1.5 }}>
+          {lang==='ru'?'Ваши добавления будут записаны на ваше имя.'
+                     :'Tes ajouts seront enregistrés à ton nom.'}
+        </div>
+        <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom:14 }}>
+          {players.map(p=>{
+            const on = me===p.name
+            return (
+              <button key={p.name} onClick={()=>{ setLocal(p.name); setMe(p.name) }}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 14px', borderRadius:20,
+                  border:`1px solid ${on?T.clay:T.line}`, background:on?T.clay:'transparent' }}>
+                <span className="serif" style={{ width:26, height:26, borderRadius:'50%',
+                  background:on?'rgba(255,255,255,.22)':'#7A8B5C', color:'#fff', display:'flex',
+                  alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>{p.id}</span>
+                <span className="serif" style={{ fontSize:14, fontWeight:on?900:600, color:on?'#fff':T.ink }}>{p.name}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ display:'flex', gap:7 }}>
+          <input value={adding} onChange={e=>setAdding(e.target.value)}
+            onKeyDown={e=>{ if(e.key==='Enter'&&adding.trim()){ addPlayer(adding); setLocal(adding.trim()); setMe(adding.trim()); setAdding('') } }}
+            placeholder={lang==='ru'?'Новый наблюдатель':'Nouvel observateur'}
+            style={{ ...input, flex:1 }} />
+          <button onClick={()=>{ if(adding.trim()){ addPlayer(adding); setLocal(adding.trim()); setMe(adding.trim()); setAdding('') } }}
+            style={{ padding:'10px 16px', borderRadius:10, background:T.sageDark, color:'#fff', fontSize:13, fontWeight:700 }}>+</button>
+        </div>
+        <button onClick={onClose} disabled={!me} className="serif"
+          style={{ width:'100%', marginTop:16, padding:'11px', borderRadius:12,
+            background: me?T.clay:'#DDD3BE', color: me?'#fff':T.mute, fontSize:14, fontWeight:700,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+          <i className="ti ti-check" style={{ fontSize:16 }} aria-hidden="true" />
+          {lang==='ru'?'Продолжить':'Continuer'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+// ══════ Nouvelle espèce ══════
+const EMOJIS = ['🦌','🦊','🐺','🐆','🦡','🦫','🐗','🐇','🐿️','🦔','🦉','🦅','🐦','🪽','🦆','🌳','🌲','🍁','🍄','🍃','🦋','🪲','🐝','🐌','🐸','🐍','🐟','🌸','🌾','🧍']
+
+export function SpeciesEditor({ lang, initial, presetCat, presetSub, onClose, onSaved }) {
+  const isEdit = !!initial
+  const cats = allCats()
+  const [n, setN] = useState(initial?.n || '')
+  const [lat, setLat] = useState(initial?.lat || '')
+  const [e, setE] = useState(initial?.e || '🦌')
+  const [cat, setCat] = useState(initial?.cat || presetCat || cats[0].id)
+  const [sub, setSub] = useState(initial?.sub || presetSub || cats[0].subs[0].id)
+  const [newSub, setNewSub] = useState('')
+  const [r, setR] = useState(initial?.r || 'commun')
+  const [sz, setSz] = useState(initial?.sz || 'm')
+  const [alim, setAlim] = useState(initial?.alim || '')
+  const [hab, setHab] = useState(initial?.hab || '')
+  const [dng, setDng] = useState(initial?.dng || '')
+  const [busy, setBusy] = useState(false)
+  const catObj = cats.find(c=>c.id===cat) || cats[0]
+
+  const save = async () => {
+    if (!n.trim()) return
+    setBusy(true)
+    const fields = { n:n.trim(), lat:lat.trim(), e, cat, sub:(newSub.trim()||sub), r, sz,
+      alim:alim.trim(), hab:hab.trim(), dng:dng.trim() }
+    if (isEdit) await editSpecies(initial.id, fields)
+    else await addSpecies(fields)
+    setBusy(false); onSaved?.(); onClose()
+  }
+
+  return (
+    <Modal onClose={onClose} max={520}>
+      <div style={{ padding:'20px 22px 0' }}>
+        <div className="serif" style={{ fontSize:19, fontWeight:900, color:T.ink }}>
+          {isEdit ? (lang==='ru'?'Изменить вид':'Modifier l\u2019espèce')
+                  : (lang==='ru'?'Новый вид':'Nouvelle espèce')}
+        </div>
+      </div>
+      <div style={{ padding:'0 22px 12px' }}>
+        <label style={label}>{lang==='ru'?'Название':'Nom courant'}</label>
+        <input value={n} onChange={ev=>setN(ev.target.value)} autoFocus style={input}
+          placeholder={lang==='ru'?'Например: Рысь':'Ex. Lynx boréal'} />
+
+        <label style={label}>{lang==='ru'?'Латинское название':'Nom latin'}</label>
+        <input value={lat} onChange={ev=>setLat(ev.target.value)} style={input} placeholder="Lynx lynx" />
+
+        <label style={label}>{lang==='ru'?'Значок':'Pictogramme'}</label>
+        <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+          {EMOJIS.map(x=>(
+            <button key={x} onClick={()=>setE(x)} style={{ fontSize:19, width:34, height:34, borderRadius:9,
+              border:`1px solid ${e===x?T.clay:T.line}`, background:e===x?'#F0DDD0':'transparent' }}>{x}</button>
+          ))}
+        </div>
+
+        <label style={label}>{lang==='ru'?'Царство':'Règne'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          {cats.map(c=>(
+            <button key={c.id} onClick={()=>{ setCat(c.id); setSub(c.subs[0]?.id||'') }}
+              style={{ fontSize:11.5, padding:'6px 11px', borderRadius:14,
+                border:`1px solid ${cat===c.id?T.clay:T.line}`, background:cat===c.id?T.clay:'transparent',
+                color:cat===c.id?'#fff':T.soft }}>{c.e} {c.n}</button>
+          ))}
+        </div>
+
+        <label style={label}>{lang==='ru'?'Семейство':'Famille'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap', marginBottom:6 }}>
+          {catObj.subs.map(sv=>(
+            <button key={sv.id} onClick={()=>{ setSub(sv.id); setNewSub('') }}
+              style={{ fontSize:11.5, padding:'6px 11px', borderRadius:14,
+                border:`1px solid ${!newSub && sub===sv.id?T.clay:T.line}`,
+                background:!newSub && sub===sv.id?'#F0DDD0':'transparent', color:T.soft }}>{sv.id}</button>
+          ))}
+        </div>
+        <input value={newSub} onChange={ev=>setNewSub(ev.target.value)} style={{ ...input, fontSize:12.5 }}
+          placeholder={lang==='ru'?'…или новое семейство':'…ou créer une nouvelle famille'} />
+
+        <label style={label}>{lang==='ru'?'Редкость':'Rareté'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          {Object.entries(RARITY).map(([k,v])=>(
+            <button key={k} onClick={()=>setR(k)} style={{ fontSize:11.5, padding:'6px 11px', borderRadius:14,
+              border:`1px solid ${r===k?v.c:T.line}`, background:r===k?v.c:'transparent',
+              color:r===k?'#fff':T.soft }}>{v.l} · {v.p}</button>
+          ))}
+        </div>
+
+        <label style={label}>{lang==='ru'?'Размер':'Taille'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          {[['xs','Très petit'],['s','Petit'],['m','Moyen'],['l','Grand'],['xl','Géant']].map(([k,l])=>(
+            <button key={k} onClick={()=>setSz(k)} style={{ fontSize:11.5, padding:'6px 11px', borderRadius:14,
+              border:`1px solid ${sz===k?T.clay:T.line}`, background:sz===k?'#F0DDD0':'transparent',
+              color:T.soft }}>{l} ×{SIZE_MULT[k]}</button>
+          ))}
+        </div>
+
+        <label style={label}>{lang==='ru'?'Питание':'Alimentation'}</label>
+        <textarea value={alim} onChange={ev=>setAlim(ev.target.value)} rows={2} style={{ ...input, fontSize:12.5, resize:'vertical' }} />
+        <label style={label}>{lang==='ru'?'Среда обитания':'Habitat & territoire'}</label>
+        <textarea value={hab} onChange={ev=>setHab(ev.target.value)} rows={2} style={{ ...input, fontSize:12.5, resize:'vertical' }} />
+        <label style={label}>{lang==='ru'?'Опасность':'Danger'}</label>
+        <textarea value={dng} onChange={ev=>setDng(ev.target.value)} rows={2} style={{ ...input, fontSize:12.5, resize:'vertical' }} />
+      </div>
+
+      <ValidateBar lang={lang} onCancel={onClose} onSave={save} busy={busy} disabled={!n.trim()} />
+    </Modal>
+  )
+}
+
+// ══════ Barre de validation ══════
+export function ValidateBar({ lang, onCancel, onSave, busy, disabled }) {
+  return (
+    <div style={{ position:'sticky', bottom:0, background:T.bg, borderTop:`1px solid ${T.line}`,
+      padding:'12px 22px', display:'flex', gap:9, zIndex:3 }}>
+      <button onClick={onCancel} style={{ flex:1, padding:'11px', borderRadius:12,
+        border:`1px solid ${T.line}`, color:T.soft, fontSize:13 }}>
+        {lang==='ru'?'Отмена':'Annuler'}
+      </button>
+      <button onClick={onSave} disabled={busy||disabled} className="serif"
+        style={{ flex:1.6, padding:'11px', borderRadius:12,
+          background: (busy||disabled)?'#DDD3BE':T.clay, color:(busy||disabled)?T.mute:'#fff',
+          fontSize:14, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:7 }}>
+        <i className="ti ti-check" style={{ fontSize:17 }} aria-hidden="true" />
+        {busy ? (lang==='ru'?'Сохранение…':'Enregistrement…') : (lang==='ru'?'Подтвердить':'Valider')}
+      </button>
+    </div>
+  )
+}
+
+// ══════ Marquer une observation ══════
+export function ObservationEditor({ sp, lang, onClose, onSaved }) {
+  const me = getMe() || allPlayers()[0]?.name
+  const [who, setWho] = useState(me)
+  const [methods, setMethods] = useState(sp.obs?.[me] || [])
+  const [busy, setBusy] = useState(false)
+  const toggle = (m) => setMethods(v => v.includes(m) ? v.filter(x=>x!==m) : [...v, m])
+  return (
+    <Modal onClose={onClose}>
+      <div style={{ padding:'20px 22px 12px' }}>
+        <div className="serif" style={{ fontSize:18, fontWeight:900, color:T.ink, marginBottom:3 }}>
+          {lang==='ru'?'Отметить наблюдение':'Marquer une observation'}
+        </div>
+        <div style={{ fontSize:12.5, color:T.soft, marginBottom:6 }}>{sp.e} {sp.n}</div>
+        <label style={label}>{lang==='ru'?'Наблюдатель':'Observateur'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          {allPlayers().filter(p=>!p.demo).map(p=>(
+            <button key={p.name} onClick={()=>{ setWho(p.name); setMethods(sp.obs?.[p.name]||[]) }}
+              style={{ fontSize:12, padding:'6px 12px', borderRadius:14,
+                border:`1px solid ${who===p.name?T.clay:T.line}`,
+                background:who===p.name?T.clay:'transparent', color:who===p.name?'#fff':T.soft }}>{p.name}</button>
+          ))}
+        </div>
+        <label style={label}>{lang==='ru'?'Способ':'Comment ?'}</label>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {Object.entries(METHODS).map(([k,m])=>{
+            const on = methods.includes(k)
+            return (
+              <button key={k} onClick={()=>toggle(k)} style={{ fontSize:12, padding:'8px 13px', borderRadius:14,
+                border:`1px solid ${on?m.c:T.line}`, background:on?m.c:'transparent',
+                color:on?m.on:T.soft, fontWeight:on?600:400, display:'flex', alignItems:'center', gap:5 }}>
+                {k==='eye'?'👁':k==='scope'?'🔭':k==='night'?'🌙':'📷'} {m.l} ×{m.mult}
+              </button>
+            )
+          })}
+        </div>
+        {methods.length===0 && (
+          <div style={{ fontSize:11.5, color:T.mute, marginTop:10 }}>
+            {lang==='ru'?'Без способа наблюдение будет удалено.':'Sans méthode, l\u2019observation sera retirée.'}
+          </div>
+        )}
+      </div>
+      <ValidateBar lang={lang} onCancel={onClose} busy={busy}
+        onSave={async()=>{ setBusy(true); await setObservation(sp.id, who, methods); setBusy(false); onSaved?.(); onClose() }} />
+    </Modal>
+  )
+}
+
+// ══════ Nouvelle observation (passage ou familier) ══════
+
+export function SightingEditor({ lang, species, presetSp, onClose, onSaved }) {
+  const me = getMe() || allPlayers()[0]?.name || ''
+  const [spId, setSpId] = useState(presetSp?.id || '')
+  const [q, setQ] = useState('')
+  const [named, setNamed] = useState(false)
+  const [name, setName] = useState('')
+  const [note, setNote] = useState('')
+  const [traits, setTraits] = useState('')
+  const [story, setStory] = useState('')
+  const [by, setBy] = useState(me)
+  const [method, setMethod] = useState('eye')
+  const now = new Date()
+  const [d, setD] = useState(now.toISOString().slice(0,10))
+  const [time, setTime] = useState(now.toTimeString().slice(0,5))
+  const [weather, setWeather] = useState('')
+  const [lat, setLat] = useState('')
+  const [lon, setLon] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const sp = species.find(s=>s.id===spId)
+  const results = q.trim()
+    ? species.filter(s=>s.n.toLowerCase().includes(q.toLowerCase().trim())).slice(0,8)
+    : []
+
+  const locate = () => {
+    navigator.geolocation?.getCurrentPosition(
+      p => { setLat(p.coords.latitude.toFixed(5)); setLon(p.coords.longitude.toFixed(5)) },
+      () => {}, { enableHighAccuracy:true, timeout:8000 }
+    )
+  }
+
+  const save = async () => {
+    if (!spId) return
+    setBusy(true)
+    const label = named ? (name.trim() || 'Sans nom')
+      : `Passage du ${new Date(d).toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`
+    const ind = {
+      n: label, named, note: note.trim(), d: new Date(d).toLocaleDateString('fr-FR'),
+      time, by, method, weather: weather.trim(), story: story.trim(),
+      desc: '', b: [], traits: traits.trim(),
+      ...(lat && lon ? { gps:[parseFloat(lat), parseFloat(lon)] } : {}),
+    }
+    await addSighting(spId, ind)
+    // marquer aussi l'espèce comme observée par cette personne
+    const cur = sp?.obs?.[by] || []
+    if (!cur.includes(method)) await setObservation(spId, by, [...cur, method])
+    setBusy(false); onSaved?.(spId); onClose()
+  }
+
+  return (
+    <Modal onClose={onClose} max={520}>
+      <div style={{ padding:'20px 22px 0' }}>
+        <div className="serif" style={{ fontSize:19, fontWeight:900, color:T.ink }}>
+          {lang==='ru'?'Новое наблюдение':'Nouvelle observation'}
+        </div>
+        <div style={{ fontSize:12, color:T.soft, marginTop:3 }}>
+          {lang==='ru'?'Запишите встречу с животным или растением.'
+                     :'Note une rencontre : ce que tu as vu, où et quand.'}
+        </div>
+      </div>
+      <div style={{ padding:'0 22px 12px' }}>
+        <label style={label}>{lang==='ru'?'Вид':'Quelle espèce ?'}</label>
+        {sp ? (
+          <div style={{ display:'flex', alignItems:'center', gap:9, background:T.card,
+            border:`1px solid ${T.line}`, borderRadius:10, padding:'9px 11px' }}>
+            <span style={{ fontSize:20 }}>{sp.e}</span>
+            <span style={{ flex:1, fontSize:13.5, fontWeight:600, color:T.ink }}>{sp.n}</span>
+            <button onClick={()=>{ setSpId(''); setQ('') }} style={{ color:T.mute, fontSize:12 }}>
+              {lang==='ru'?'изменить':'changer'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <input value={q} onChange={e=>setQ(e.target.value)} autoFocus style={input}
+              placeholder={lang==='ru'?'Начните вводить…':'Tape les premières lettres…'} />
+            {results.length>0 && (
+              <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:4, maxHeight:190, overflowY:'auto' }}>
+                {results.map(s2=>(
+                  <button key={s2.id} onClick={()=>{ setSpId(s2.id); setQ('') }}
+                    style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:9,
+                      border:`1px solid ${T.line}`, background:T.card, textAlign:'left' }}>
+                    <span style={{ fontSize:17 }}>{s2.e}</span>
+                    <span style={{ fontSize:12.5, color:T.ink, flex:1 }}>{s2.n}</span>
+                    <span style={{ fontSize:10.5, color:T.mute, fontStyle:'italic' }}>{s2.lat}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        <label style={label}>{lang==='ru'?'Тип':'Type de rencontre'}</label>
+        <div style={{ display:'flex', gap:6 }}>
+          <button onClick={()=>setNamed(false)} style={{ flex:1, padding:'10px', borderRadius:11,
+            border:`1px solid ${!named?T.clay:T.line}`, background:!named?'#F0DDD0':'transparent',
+            fontSize:12.5, color:T.ink, fontWeight:!named?700:400 }}>
+            👁 {lang==='ru'?'Проход':'Passage'}
+          </button>
+          <button onClick={()=>setNamed(true)} style={{ flex:1, padding:'10px', borderRadius:11,
+            border:`2px solid ${named?T.gold:T.line}`, background:named?'#F5EBD6':'transparent',
+            fontSize:12.5, color:T.ink, fontWeight:named?700:400 }}>
+            ★ {lang==='ru'?'Знакомый':'Familier'}
+          </button>
+        </div>
+        <div style={{ fontSize:11, color:T.mute, marginTop:5, lineHeight:1.45 }}>
+          {named
+            ? (lang==='ru'?'Особь, которую вы узнаёте и будете отслеживать.'
+                          :'Un animal que tu reconnais et que tu suivras dans le temps.')
+            : (lang==='ru'?'Разовая встреча без опознания особи.'
+                          :'Une rencontre ponctuelle, sans identifier l\\u2019individu.')}
+        </div>
+
+        {named && <>
+          <label style={label}>{lang==='ru'?'Имя':'Son nom'}</label>
+          <input value={name} onChange={e=>setName(e.target.value)} style={input}
+            placeholder={lang==='ru'?'Локи':'Loki, Balafré, La Vieille…'} />
+          <label style={label}>{lang==='ru'?'Приметы':'Signes distinctifs'}</label>
+          <input value={traits} onChange={e=>setTraits(e.target.value)} style={{ ...input, fontSize:12.5 }}
+            placeholder={lang==='ru'?'Шрам, окрас…':'Cicatrice, tache, bois…'} />
+        </>}
+
+        <label style={label}>{lang==='ru'?'Способ':'Comment ?'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          {Object.entries(METHODS).map(([k,m])=>(
+            <button key={k} onClick={()=>setMethod(k)} style={{ fontSize:11.5, padding:'7px 12px', borderRadius:14,
+              border:`1px solid ${method===k?m.c:T.line}`, background:method===k?m.c:'transparent',
+              color:method===k?m.on:T.soft, fontWeight:method===k?600:400 }}>
+              {k==='eye'?'👁':k==='scope'?'🔭':k==='night'?'🌙':'📷'} {m.l}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display:'flex', gap:8 }}>
+          <div style={{ flex:1 }}>
+            <label style={label}>{lang==='ru'?'Дата':'Date'}</label>
+            <input type="date" value={d} onChange={e=>setD(e.target.value)} style={input} />
+          </div>
+          <div style={{ width:120 }}>
+            <label style={label}>{lang==='ru'?'Время':'Heure'}</label>
+            <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={input} />
+          </div>
+        </div>
+
+        <label style={label}>{lang==='ru'?'Наблюдатель':'Observateur'}</label>
+        <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+          {allPlayers().filter(p=>!p.demo).map(p=>(
+            <button key={p.name} onClick={()=>setBy(p.name)} style={{ fontSize:12, padding:'6px 12px', borderRadius:14,
+              border:`1px solid ${by===p.name?T.clay:T.line}`, background:by===p.name?T.clay:'transparent',
+              color:by===p.name?'#fff':T.soft }}>{p.name}</button>
+          ))}
+        </div>
+
+        <label style={label}>{lang==='ru'?'Координаты':'Coordonnées GPS'}</label>
+        <div style={{ display:'flex', gap:6 }}>
+          <input value={lat} onChange={e=>setLat(e.target.value)} placeholder="57.28636"
+            style={{ ...input, flex:1, fontSize:12.5 }} />
+          <input value={lon} onChange={e=>setLon(e.target.value)} placeholder="25.59392"
+            style={{ ...input, flex:1, fontSize:12.5 }} />
+          <button onClick={locate} title="Ma position"
+            style={{ padding:'0 14px', borderRadius:10, border:`1px solid ${T.line}`,
+              background:T.card, color:T.clay, fontSize:16 }}>◎</button>
+        </div>
+
+        <label style={label}>{lang==='ru'?'Условия':'Conditions'}</label>
+        <input value={weather} onChange={e=>setWeather(e.target.value)} style={{ ...input, fontSize:12.5 }}
+          placeholder={lang==='ru'?'Ясно, 12 °C':'Ciel dégagé, 12 °C'} />
+
+        <label style={label}>{lang==='ru'?'Кратко':'En un mot'}</label>
+        <input value={note} onChange={e=>setNote(e.target.value)} style={{ ...input, fontSize:12.5 }}
+          placeholder={lang==='ru'?'Взрослый самец':'Adulte, seul, en lisière'} />
+
+        <label style={label}>{lang==='ru'?'Рассказ':'Ton récit'}</label>
+        <textarea value={story} onChange={e=>setStory(e.target.value)} rows={4}
+          style={{ ...input, fontSize:12.5, resize:'vertical' }}
+          placeholder={lang==='ru'?'Что произошло…':'Raconte la rencontre…'} />
+      </div>
+      <ValidateBar lang={lang} onCancel={onClose} onSave={save} busy={busy} disabled={!spId} />
+    </Modal>
+  )
+}
