@@ -11,6 +11,7 @@ const S = {
   species: [],       // espèces ajoutées
   players: [],       // joueurs ajoutés
   edits: {},         // spId -> champs modifiés
+  sightings: {},     // spId -> [{ind, ...}]
   ready: false,
 }
 const subs = new Set()

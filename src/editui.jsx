@@ -352,7 +352,7 @@ export function SightingEditor({ lang, species, presetSp, onClose, onSaved }) {
             ? (lang==='ru'?'Особь, которую вы узнаёте и будете отслеживать.'
                           :'Un animal que tu reconnais et que tu suivras dans le temps.')
             : (lang==='ru'?'Разовая встреча без опознания особи.'
-                          :'Une rencontre ponctuelle, sans identifier l\\u2019individu.')}
+                          :'Une rencontre ponctuelle, sans identifier l’individu.')}
         </div>
 
         {named && <>

@@ -210,7 +210,7 @@ export function Territory({ wide, lang, onBack, edit }) {
           <h2 className="serif" style={{ fontSize: wide?30:23, fontWeight:900, color:T.ink, marginBottom:3 }}>
             {lang==='ru'?'Территория':'Le territoire'}
           </h2>
-          <p style={{ fontSize:12, color:T.mute }}>57°17\u201910.9\u2033N · 25°35\u201938.1\u2033E</p>
+          <p style={{ fontSize:12, color:T.mute }}>57°17′10.9″N · 25°35′38.1″E</p>
         </div>
       </div>
 
