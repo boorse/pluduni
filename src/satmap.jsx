@@ -20,8 +20,11 @@ export default function SatMap({ center, pins = [], zones = [], draftPts = [], d
   const [z, setZ] = useState(16)
   const [c, setC] = useState(center)          // {lat, lon} au centre
   const wrapRef = useRef(null)
-  const [size, setSize] = useState({ w: 800, h: height })
-  const drag = useRef({ on: false, sx: 0, sy: 0, clat: 0, clon: 0, moved: false })
+  const stageRef = useRef(null)
+  const [size, setSize] = useState({ w: 800, h: typeof height === 'number' ? height : 520 })
+  const ptrs = useRef(new Map())
+  const gest = useRef(null)
+  const drag = useRef({ moved: false })
 
   useEffect(() => {
     const el = wrapRef.current; if (!el) return
@@ -56,20 +59,72 @@ export default function SatMap({ center, pins = [], zones = [], draftPts = [], d
     top: lat2y(lat, z) * TS - originY,
   }), [z, originX, originY])
 
+  const clearStageTransform = () => { if (stageRef.current) stageRef.current.style.transform = '' }
+
   const down = (e) => {
-    const p = e.touches ? e.touches[0] : e
-    drag.current = { on: true, sx: p.clientX, sy: p.clientY, clat: c.lat, clon: c.lon, moved: false }
+    const el = wrapRef.current; if (!el) return
+    ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    drag.current.moved = false
+    if (ptrs.current.size === 1) {
+      gest.current = { mode:'pan', sx:e.clientX, sy:e.clientY, clat:c.lat, clon:c.lon }
+    } else if (ptrs.current.size === 2) {
+      try { el.setPointerCapture?.(e.pointerId) } catch {}
+      const [a,b] = [...ptrs.current.values()]
+      const r = el.getBoundingClientRect()
+      gest.current = { mode:'zoom', d:Math.hypot(a.x-b.x, a.y-b.y), z0:z,
+        mx:(a.x+b.x)/2 - r.left, my:(a.y+b.y)/2 - r.top, scale:1 }
+    }
   }
   const move = (e) => {
-    if (!drag.current.on) return
-    const p = e.touches ? e.touches[0] : e
-    const dx = p.clientX - drag.current.sx, dy = p.clientY - drag.current.sy
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.current.moved = true
-    const px = lon2x(drag.current.clon, z) * TS - dx
-    const py = lat2y(drag.current.clat, z) * TS - dy
-    setC({ lon: x2lon(px / TS, z), lat: y2lat(py / TS, z) })
+    if (!ptrs.current.has(e.pointerId)) return
+    ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    const g = gest.current; if (!g) return
+
+    if (g.mode === 'pan' && ptrs.current.size === 1) {
+      const dx = e.clientX - g.sx, dy = e.clientY - g.sy
+      if (!drag.current.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+        drag.current.moved = true
+        wrapRef.current?.setPointerCapture?.(e.pointerId)   // capture seulement en glissant
+      }
+      const px = lon2x(g.clon, z) * TS - dx
+      const py = lat2y(g.clat, z) * TS - dy
+      setC({ lon: x2lon(px / TS, z), lat: y2lat(py / TS, z) })
+    } else if (g.mode === 'zoom' && ptrs.current.size >= 2) {
+      const [a,b] = [...ptrs.current.values()]
+      const ratio = Math.hypot(a.x-b.x, a.y-b.y) / g.d
+      g.scale = Math.min(4, Math.max(0.25, ratio))
+      drag.current.moved = true
+      if (stageRef.current) {
+        stageRef.current.style.transform =
+          `translate(${g.mx}px,${g.my}px) scale(${g.scale}) translate(${-g.mx}px,${-g.my}px)`
+      }
+    }
   }
-  const up = () => { drag.current.on = false }
+  const up = (e) => {
+    try { wrapRef.current?.releasePointerCapture?.(e.pointerId) } catch {}
+    ptrs.current.delete(e.pointerId)
+    const g = gest.current
+    if (ptrs.current.size === 0) {
+      if (g?.mode === 'zoom' && g.scale !== 1) {
+        const dz = Math.round(Math.log2(g.scale))
+        const nz = Math.max(3, Math.min(19, g.z0 + dz))
+        if (nz !== z) {
+          const lon = x2lon((originX + g.mx) / TS, z)
+          const lat = y2lat((originY + g.my) / TS, z)
+          const nx = lon2x(lon, nz) * TS, ny = lat2y(lat, nz) * TS
+          setZ(nz)
+          setC({ lon: x2lon((nx - g.mx + size.w / 2) / TS, nz), lat: y2lat((ny - g.my + size.h / 2) / TS, nz) })
+        }
+        clearStageTransform()
+      }
+      gest.current = null
+      setTimeout(() => { drag.current.moved = false }, 0)
+    } else if (ptrs.current.size === 1) {
+      clearStageTransform()
+      const [p] = [...ptrs.current.values()]
+      gest.current = { mode:'pan', sx:p.x, sy:p.y, clat:c.lat, clon:c.lon }
+    }
+  }
 
   const wheel = useCallback((e) => {
     e.preventDefault()
@@ -102,53 +157,55 @@ export default function SatMap({ center, pins = [], zones = [], draftPts = [], d
 
   return (
     <div ref={wrapRef}
-      onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
-      onTouchStart={down} onTouchMove={move} onTouchEnd={up}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+      onPointerLeave={up} onLostPointerCapture={up}
       onClick={click} onDragStart={e=>e.preventDefault()}
       style={{ position:'relative', width:'100%', height, overflow:'hidden', background:'#1E2418',
-        cursor: (addMode||lineMode) ? 'crosshair' : (drag.current.on ? 'grabbing' : 'grab'),
+        cursor: (addMode||lineMode) ? 'crosshair' : 'grab',
         touchAction:'none', userSelect:'none' }}>
-      {tiles.map(t => (
-        <img key={t.key} src={t.url} alt="" draggable={false}
-          style={{ position:'absolute', left:t.left, top:t.top, width:TS, height:TS, display:'block', pointerEvents:'none' }} />
-      ))}
+      <div ref={stageRef} style={{ position:'absolute', inset:0, transformOrigin:'0 0' }}>
+        {tiles.map(t => (
+          <img key={t.key} src={t.url} alt="" draggable={false}
+            style={{ position:'absolute', left:t.left, top:t.top, width:TS, height:TS, display:'block', pointerEvents:'none' }} />
+        ))}
 
-      <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none', zIndex:2 }}>
-        {zones.map(z => {
-          const pts = z.pts.map(([la,lo]) => { const sp = toScreen(la,lo); return `${sp.left},${sp.top}` }).join(' ')
-          if (z.kind === 'zone') return <polygon key={z.id} points={pts} fill={z.color+'40'} stroke={z.color} strokeWidth="2" />
-          return <polyline key={z.id} points={pts} fill="none" stroke={z.color} strokeWidth="2.5" strokeDasharray="7 5" />
+        <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none', zIndex:2 }}>
+          {zones.map(z => {
+            const pts = z.pts.map(([la,lo]) => { const sp = toScreen(la,lo); return `${sp.left},${sp.top}` }).join(' ')
+            if (z.kind === 'zone') return <polygon key={z.id} points={pts} fill={z.color+'40'} stroke={z.color} strokeWidth="2" />
+            return <polyline key={z.id} points={pts} fill="none" stroke={z.color} strokeWidth="2.5" strokeDasharray="7 5" />
+          })}
+          {draftPts.length>0 && (() => {
+            const pts = draftPts.map(([la,lo]) => { const sp = toScreen(la,lo); return `${sp.left},${sp.top}` }).join(' ')
+            return <>
+              {draftKind==='zone'
+                ? <polygon points={pts} fill="rgba(122,139,92,.28)" stroke="#7A8B5C" strokeWidth="2" />
+                : <polyline points={pts} fill="none" stroke="#B5602F" strokeWidth="2.5" strokeDasharray="7 5" />}
+              {draftPts.map(([la,lo],i)=>{ const sp = toScreen(la,lo)
+                return <circle key={i} cx={sp.left} cy={sp.top} r="5" fill="#fff" stroke="#B5602F" strokeWidth="2" /> })}
+            </>
+          })()}
+        </svg>
+
+        {pins.map(p => {
+          const s = toScreen(p.lat, p.lon)
+          if (s.left < -60 || s.top < -60 || s.left > size.w + 60 || s.top > size.h + 60) return null
+          const on = selected?.id === p.id
+          return (
+            <button key={p.id} onClick={(e)=>{ e.stopPropagation(); if(!drag.current.moved) onSelect?.(on ? null : p) }}
+              style={{ position:'absolute', left:s.left, top:s.top, transform:'translate(-50%,-100%)',
+                display:'flex', flexDirection:'column', alignItems:'center', zIndex:on?5:3, padding:0 }}>
+              <span style={{ width:on?30:24, height:on?30:24, borderRadius:'50%', background:p.color,
+                border:`2px solid ${on?'#fff':'rgba(255,255,255,.8)'}`, display:'flex', alignItems:'center',
+                justifyContent:'center', fontSize:on?14:11.5, boxShadow:'0 2px 9px rgba(0,0,0,.45)',
+                transition:'all .16s' }}>{p.emoji}</span>
+              <span style={{ width:2, height:8, background:p.color, boxShadow:'0 1px 3px rgba(0,0,0,.4)' }} />
+              {on && <span style={{ marginTop:2, fontSize:10, background:'rgba(20,22,14,.88)', color:'#F2EEE2',
+                padding:'2px 7px', borderRadius:8, whiteSpace:'nowrap' }}>{p.label}</span>}
+            </button>
+          )
         })}
-        {draftPts.length>0 && (() => {
-          const pts = draftPts.map(([la,lo]) => { const sp = toScreen(la,lo); return `${sp.left},${sp.top}` }).join(' ')
-          return <>
-            {draftKind==='zone'
-              ? <polygon points={pts} fill="rgba(122,139,92,.28)" stroke="#7A8B5C" strokeWidth="2" />
-              : <polyline points={pts} fill="none" stroke="#B5602F" strokeWidth="2.5" strokeDasharray="7 5" />}
-            {draftPts.map(([la,lo],i)=>{ const sp = toScreen(la,lo)
-              return <circle key={i} cx={sp.left} cy={sp.top} r="5" fill="#fff" stroke="#B5602F" strokeWidth="2" /> })}
-          </>
-        })()}
-      </svg>
-
-      {pins.map(p => {
-        const s = toScreen(p.lat, p.lon)
-        if (s.left < -60 || s.top < -60 || s.left > size.w + 60 || s.top > size.h + 60) return null
-        const on = selected?.id === p.id
-        return (
-          <button key={p.id} onClick={(e)=>{ e.stopPropagation(); if(!drag.current.moved) onSelect?.(on ? null : p) }}
-            style={{ position:'absolute', left:s.left, top:s.top, transform:'translate(-50%,-100%)',
-              display:'flex', flexDirection:'column', alignItems:'center', zIndex:on?5:3, padding:0 }}>
-            <span style={{ width:on?30:24, height:on?30:24, borderRadius:'50%', background:p.color,
-              border:`2px solid ${on?'#fff':'rgba(255,255,255,.8)'}`, display:'flex', alignItems:'center',
-              justifyContent:'center', fontSize:on?14:11.5, boxShadow:'0 2px 9px rgba(0,0,0,.45)',
-              transition:'all .16s' }}>{p.emoji}</span>
-            <span style={{ width:2, height:8, background:p.color, boxShadow:'0 1px 3px rgba(0,0,0,.4)' }} />
-            {on && <span style={{ marginTop:2, fontSize:10, background:'rgba(20,22,14,.88)', color:'#F2EEE2',
-              padding:'2px 7px', borderRadius:8, whiteSpace:'nowrap' }}>{p.label}</span>}
-          </button>
-        )
-      })}
+      </div>
 
       {/* contrôles minimalistes */}
       <div style={{ position:'absolute', right:10, bottom:10, display:'flex', flexDirection:'column', gap:5, zIndex:6 }}>

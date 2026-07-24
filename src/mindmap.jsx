@@ -147,6 +147,7 @@ export default function MindMap({ onSelectSpecies, lang='fr', expanded, setExpan
     if (ptrs.current.size === 1) {
       gest.current = { mode:'pan', sx:e.clientX, sy:e.clientY, ox:liveRef.current.x, oy:liveRef.current.y }
     } else if (ptrs.current.size === 2) {
+      try { el.setPointerCapture?.(e.pointerId) } catch {}
       const [a,b] = [...ptrs.current.values()]
       const r = el.getBoundingClientRect()
       gest.current = { mode:'zoom', d:Math.hypot(a.x-b.x, a.y-b.y), k:liveRef.current.k,
@@ -239,7 +240,7 @@ export default function MindMap({ onSelectSpecies, lang='fr', expanded, setExpan
 
       <div ref={wrapRef}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-        onPointerCancel={onUp} onPointerLeave={onUp}
+        onPointerCancel={onUp} onPointerLeave={onUp} onLostPointerCapture={onUp}
         onDragStart={e=>e.preventDefault()}
         style={{ flex:1, minHeight:300, overflow:'hidden', position:'relative',
           cursor:'grab', touchAction:'none', userSelect:'none', WebkitUserSelect:'none',

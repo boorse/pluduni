@@ -37,7 +37,7 @@ export function Calendar({ wide, lang, onBack }) {
   // to-do partagée (localStorage)
   const [todos, setTodos] = useState([])
   const [draft, setDraft] = useState('')
-  const [who, setWho] = useState('Exemple')
+  const [who, setWho] = useState(() => allPlayers()[0]?.name || '')
   const SPECIES = allSpecies(); const ALL_PLAYERS = allPlayers()
   const reloadTodos = async () => { try { setTodos(await getTodos()) } catch(e){} }
   useEffect(()=>{ reloadTodos() },[])
@@ -271,7 +271,7 @@ export function Territory({ wide, lang, onBack, edit }) {
 
       <div style={{ borderRadius:16, overflow:'hidden', border:`1px solid ${T.line}`, position:'relative' }}>
         <SatMap center={center} pins={mapPins} zones={zones} draftPts={draftPts} draftKind={tool}
-          selected={sel && { id:sel.id }} height={wide?560:360}
+          selected={sel && { id:sel.id }} height={wide?680:'calc(100dvh - 260px)'}
           addMode={tool==='pin'} lineMode={tool==='zone'||tool==='line'}
           onSelect={(p)=>setSel(p ? pins.find(x=>x.id===p.id) : null)}
           onMapClick={onMapClick} />
@@ -523,7 +523,7 @@ function Lightbox({ sh, lang, wide, onClose }) {
 // ══════════ PAR OBSERVATEUR ══════════
 export function ByPerson({ wide, lang, onSelectSpecies }) {
   const t = UI[lang]
-  const [who, setWho] = useState('Exemple')
+  const [who, setWho] = useState(() => allPlayers()[0]?.name || '')
   const SPECIES = allSpecies(); const ALL_PLAYERS = allPlayers()
   const mySpecies = SPECIES.filter(s=>(s.obs[who]||[]).length)
   const myInds = []

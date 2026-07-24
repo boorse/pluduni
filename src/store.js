@@ -2,7 +2,7 @@
 //  Magasin central — cache partagé, une seule source de vérité
 // ══════════════════════════════════════════════════════════════
 import { sb, publicUrl } from './supabase.js'
-import { SPECIES as BASE_SPECIES, CATS as BASE_CATS, PLAYERS as BASE_PLAYERS, DEMO,
+import { SPECIES as BASE_SPECIES, CATS as BASE_CATS, PLAYERS as BASE_PLAYERS,
          RARITY, METHODS, SIZE_MULT, ACHIEVEMENTS } from './data'
 
 const S = {
@@ -30,7 +30,7 @@ export async function loadAll() {
   ;(ph.data || []).forEach(p => {
     const rec = { id: p.id, path: p.path, url: publicUrl(p.path),
       thumbUrl: publicUrl(p.path.replace(/\.jpg$/, '_t.jpg')),
-      caption: p.caption, by: p.author }
+      caption: p.caption, by: p.author, pos: p.pos || '50% 50%' }
     ;(S.photos[p.target] ||= []).push(rec)
   })
   S.named = {}; S.species = []; S.players = []; S.edits = {}; S.sightings = {}
@@ -55,7 +55,7 @@ export async function addPhotoRec({ target, path, caption, by }) {
   const ins = await sb.from('photos').insert({ target, path, caption, author: by }).select().single()
   if (ins.error) throw new Error(ins.error.message)
   const rec = { id: ins.data.id, path, url: publicUrl(path),
-    thumbUrl: publicUrl(path.replace(/\.jpg$/, '_t.jpg')), caption, by }
+    thumbUrl: publicUrl(path.replace(/\.jpg$/, '_t.jpg')), caption, by, pos: '50% 50%' }
   S.photos[target] = [...(S.photos[target] || []), rec]
   notify(); return rec
 }
@@ -64,6 +64,11 @@ export async function removePhoto(target, id, path) {
   await sb.from('photos').delete().eq('id', id)
   S.photos[target] = (S.photos[target] || []).filter(p => p.id !== id)
   notify()
+}
+export async function setPhotoPos(target, id, pos) {
+  S.photos[target] = (S.photos[target] || []).map(p => p.id === id ? { ...p, pos } : p)
+  notify()
+  await sb.from('photos').update({ pos }).eq('id', id)
 }
 
 // ══════ FAMILIERS ══════
@@ -162,7 +167,7 @@ export function totalPtsLive(player) { return speciesPtsLive(player) + badgePtsL
 
 // ══════ JOUEURS ══════
 export function allPlayers() {
-  return [...BASE_PLAYERS, ...S.players.map(p => ({ id: p.id, name: p.name, custom: true })), DEMO]
+  return [...BASE_PLAYERS, ...S.players.map(p => ({ id: p.id, name: p.name, custom: true }))]
 }
 export async function addPlayer(name) {
   const id = name.trim()[0]?.toUpperCase() || '?'

@@ -4,7 +4,7 @@ import MindMap from './mindmap.jsx'
 import { gradientFor, gradientForCat } from './gradients.js'
 import { UI, nameOf, catNameOf } from './i18n.js'
 import { Calendar, Territory, Gallery, ByPerson } from './screens.jsx'
-import { PhotoManager, PhotoBg, PhotoButton, usePhotos, LUT } from './photoui.jsx'
+import { PhotoManager, PhotoBg, PhotoHero, PhotoButton, usePhotos, LUT } from './photoui.jsx'
 import { loadAll, subscribe, allSpecies, allPlayers, allCats, splitInds, promote, demote,
          namedOf, getMe, setMe, isReady, totalPtsLive, speciesPtsLive, badgePtsLive, calcPtsLive } from './store.js'
 import { IdentityPicker, SpeciesEditor, ObservationEditor, SightingEditor } from './editui.jsx'
@@ -124,10 +124,44 @@ function Landing({ lang, setLang, go, onQuiz, edit, onEditHero }) {
   )
 }
 
+function PwModal({ lang, pw, setPw, onSubmit, onClose }) {
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.45)', display:'flex',
+      alignItems:'center', justifyContent:'center', zIndex:70, padding:20 }}
+      onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius:18, padding:24,
+        width:'100%', maxWidth:340, border:`1px solid ${T.line}` }}>
+        <div className="serif" style={{ fontSize:19, fontWeight:900, color:T.ink, marginBottom:6 }}>
+          {lang==='ru'?'Режим правки':'Mode édition'}
+        </div>
+        <div style={{ fontSize:12.5, color:T.soft, marginBottom:14 }}>
+          {lang==='ru'?'Введите пароль.':'Entre le mot de passe pour modifier le Pokédex.'}
+        </div>
+        <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&onSubmit()} placeholder={lang==='ru'?'Пароль':'Mot de passe'} autoFocus
+          style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1px solid ${T.line}`,
+            background:T.card, fontSize:13, marginBottom:12, color:T.ink }} />
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onClose} style={{ flex:1, padding:'9px',
+            borderRadius:10, border:`1px solid ${T.line}`, color:T.soft, fontSize:13 }}>
+            {lang==='ru'?'Отмена':'Annuler'}
+          </button>
+          <button onClick={onSubmit} className="serif" style={{ flex:1, padding:'9px', borderRadius:10,
+            background:T.clay, color:'#fff', fontSize:13, fontWeight:600 }}>
+            {lang==='ru'?'Открыть':'Déverrouiller'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ══════════════════ APP ══════════════════
 export default function App() {
   const wide = useWide()
-  const [screen, setScreen] = useState('landing')
+  const [screen, setScreen] = useState(() => {
+    try { return localStorage.getItem('pluduni_screen') || 'landing' } catch { return 'landing' }
+  })
   const [lang, setLang] = useState('fr')
   const [nav, setNav] = useState('explore')
   const [curCat, setCurCat] = useState(null)
@@ -135,7 +169,9 @@ export default function App() {
   const [curSp, setCurSp] = useState(null)
   const [detTab, setDetTab] = useState('obs')
   const [pane, setPane] = useState('split')      // split | map | matrix
-  const [edit, setEdit] = useState(false)
+  const [edit, setEdit] = useState(() => {
+    try { return localStorage.getItem('pluduni_edit') === '1' } catch { return false }
+  })
   const [pwOpen, setPwOpen] = useState(false)
   const [pw, setPw] = useState('')
   const [toast, setToast] = useState(null)
@@ -159,6 +195,9 @@ export default function App() {
     return subscribe(()=>setRefresh(r=>r+1))
   }, [])
 
+  useEffect(() => { try { localStorage.setItem('pluduni_screen', screen) } catch {} }, [screen])
+  useEffect(() => { try { localStorage.setItem('pluduni_edit', edit ? '1' : '0') } catch {} }, [edit])
+
   const SPECIES = allSpecies()
   const CATS = allCats()
   const PLAYERS = allPlayers().filter(p=>!p.demo)
@@ -169,35 +208,6 @@ export default function App() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(null), 3200) }
   const selSpFull = (id) => { const s = SPECIES.find(x=>x.id===id); setCurCat(s?.cat); setCurSp(id); setDetTab('obs') }
-  const PwModal = () => (
-    <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.45)', display:'flex',
-      alignItems:'center', justifyContent:'center', zIndex:70, padding:20 }}
-      onClick={()=>{ setPwOpen(false); setPw('') }}>
-      <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius:18, padding:24,
-        width:'100%', maxWidth:340, border:`1px solid ${T.line}` }}>
-        <div className="serif" style={{ fontSize:19, fontWeight:900, color:T.ink, marginBottom:6 }}>
-          {lang==='ru'?'Режим правки':'Mode édition'}
-        </div>
-        <div style={{ fontSize:12.5, color:T.soft, marginBottom:14 }}>
-          {lang==='ru'?'Введите пароль.':'Entre le mot de passe pour modifier le Pokédex.'}
-        </div>
-        <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
-          onKeyDown={e=>e.key==='Enter'&&submitPw()} placeholder={lang==='ru'?'Пароль':'Mot de passe'} autoFocus
-          style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1px solid ${T.line}`,
-            background:T.card, fontSize:13, marginBottom:12, color:T.ink }} />
-        <div style={{ display:'flex', gap:8 }}>
-          <button onClick={()=>{ setPwOpen(false); setPw('') }} style={{ flex:1, padding:'9px',
-            borderRadius:10, border:`1px solid ${T.line}`, color:T.soft, fontSize:13 }}>
-            {lang==='ru'?'Отмена':'Annuler'}
-          </button>
-          <button onClick={submitPw} className="serif" style={{ flex:1, padding:'9px', borderRadius:10,
-            background:T.clay, color:'#fff', fontSize:13, fontWeight:600 }}>
-            {lang==='ru'?'Открыть':'Déverrouiller'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 
   const submitPw = () => { if (pw==='arbalete'){ setEdit(true); setPwOpen(false); setPw(''); if(!getMe()) setIdPicker(true) } else setPw('') }
 
@@ -217,7 +227,8 @@ export default function App() {
           {lang==='ru'?'Правка':'Édition'}
         </button>
       )}
-      {pwOpen && <PwModal />}
+      {pwOpen && <PwModal lang={lang} pw={pw} setPw={setPw} onSubmit={submitPw}
+        onClose={()=>{ setPwOpen(false); setPw('') }} />}
       {idPicker && <IdentityPicker lang={lang} onClose={()=>setIdPicker(false)} />}
       {toast && <Toast msg={toast} />}
     </>
@@ -455,10 +466,10 @@ export default function App() {
     const tabs = [['obs',t.obs],['infos',t.infos],...(seasons?[['saisons',t.seasons]]:[])]
     return (
       <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.5)', zIndex:60, display:'flex', alignItems: wide?'center':'flex-end', justifyContent:'center', padding: wide?24:0 }} onClick={()=>{setCurSp(null);setCurInd(null)}}>
-        <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius: wide?20:'20px 20px 0 0', width:'100%', maxWidth:640, maxHeight: wide?'88vh':'92vh', overflow:'auto', border:`1px solid ${T.line}` }}>
-          <div style={{ position:'relative', height:180, display:'flex', alignItems:'flex-end', padding:20 }}>
-            <PhotoBg target={`sp:${sp.id}`} thumb={false} fallback={gradientFor(sp.id)} />
-            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.55), transparent 65%)' }} />
+        <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius: wide?20:'20px 20px 0 0', width:'100%', maxWidth: wide?820:640, maxHeight: wide?'90vh':'92dvh', overflow:'auto', border:`1px solid ${T.line}` }}>
+          <div style={{ position:'relative', height: wide?260:180, display:'flex', alignItems:'flex-end', padding:20 }}>
+            <PhotoHero target={`sp:${sp.id}`} fallback={gradientFor(sp.id)} />
+            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.55), transparent 65%)', pointerEvents:'none' }} />
             {edit && <div style={{ position:'absolute', top:14, right:52, display:'flex', gap:5 }}>
               <PhotoButton onClick={()=>setPhotoTarget({ target:`sp:${sp.id}`, label:sp.n })} />
               <button onClick={(e)=>{ e.stopPropagation(); setSpEditor({ initial:sp }) }}
@@ -634,13 +645,19 @@ export default function App() {
     const ind = curInd
     const M = ind.method ? METHODS[ind.method] : null
     return (
-      <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.6)', zIndex:80, display:'flex', alignItems: wide?'center':'flex-end', justifyContent:'center', padding: wide?24:0 }} onClick={()=>setCurInd(null)}>
-        <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius: wide?20:'20px 20px 0 0', width:'100%', maxWidth:560, maxHeight: wide?'86vh':'90vh', overflow:'auto', border:`1px solid ${T.line}` }}>
-          <div style={{ position:'relative', height:200, display:'flex', alignItems:'flex-end', padding:18 }}>
-            <PhotoBg target={`ind:${sp.id}:${ind.n}`} thumb={false} fallback={gradientFor(sp.id+ind.n)} />
-            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.6), transparent 62%)' }} />
-            {edit && <div style={{ position:'absolute', top:12, right:48 }}>
+      <div style={{ position:'fixed', inset:0, background:'rgba(43,38,32,.6)', zIndex:80, display:'flex', alignItems:'center', justifyContent:'center', padding: wide?24:16 }} onClick={()=>setCurInd(null)}>
+        <div onClick={e=>e.stopPropagation()} style={{ background:T.bg, borderRadius:20, width:'100%', maxWidth: wide?660:560, maxHeight: wide?'88vh':'74dvh', overflow:'auto', border:`1px solid ${T.line}` }}>
+          <div style={{ position:'relative', height: wide?230:200, display:'flex', alignItems:'flex-end', padding:18 }}>
+            <PhotoHero target={`ind:${sp.id}:${ind.n}`} fallback={gradientFor(sp.id+ind.n)} />
+            <div style={{ position:'absolute', inset:0, background:'linear-gradient(to top, rgba(20,20,14,.6), transparent 62%)', pointerEvents:'none' }} />
+            {edit && <div style={{ position:'absolute', top:12, right:80, display:'flex', gap:5 }}>
               <PhotoButton onClick={()=>setPhotoTarget({ target:`ind:${sp.id}:${ind.n}`, label:`${sp.n} — ${ind.n}` })} />
+              <button onClick={(e)=>{ e.stopPropagation(); setPromoting({ sp, ind }) }}
+                style={{ background:'rgba(0,0,0,.35)', color:'#fff', borderRadius:'50%', width:28, height:28,
+                  display:'flex', alignItems:'center', justifyContent:'center' }}
+                title={lang==='ru'?'Изменить особь':'Modifier cet individu'}>
+                <i className="ti ti-pencil" style={{ fontSize:13 }} aria-hidden="true" />
+              </button>
             </div>}
             <button onClick={()=>setCurInd(null)} style={{ position:'absolute', top:12, right:12, width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,.3)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
               <i className="ti ti-x" style={{ fontSize:14 }} aria-hidden="true" />
@@ -927,7 +944,10 @@ export default function App() {
               </button>
             ))}
           </div>
-          <div style={{ background:T.surface, borderRadius:16, border:`1px solid ${T.line}`, overflow:'hidden' }}>
+          <div style={{ background:T.surface, borderRadius:16, border:`1px solid ${T.line}`,
+            ...(mobileTab==='map'
+              ? { overflow:'hidden', height:'calc(100dvh - 230px)', minHeight:420 }
+              : { overflow:'auto' }) }}>
             {mobileTab==='map' ? <MindMap onSelectSpecies={selSpFull} lang={lang} expanded={mapExpanded} setExpanded={setMapExpanded} tf={mapTf} setTf={setMapTf} edit={edit} onAddSpecies={(c,sv)=>setSpEditor({ cat:c, sub:sv })} /> : <MatrixPane compact />}
           </div>
         </div>
@@ -1039,7 +1059,8 @@ export default function App() {
       {photoTarget && <PhotoManager target={photoTarget.target} label={photoTarget.label} lang={lang} onClose={()=>setPhotoTarget(null)} />}
       {toast && <Toast msg={toast} />}
 
-      {pwOpen && <PwModal />}
+      {pwOpen && <PwModal lang={lang} pw={pw} setPw={setPw} onSubmit={submitPw}
+        onClose={()=>{ setPwOpen(false); setPw('') }} />}
     </div>
   )
 }
